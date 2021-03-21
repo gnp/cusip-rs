@@ -1,26 +1,146 @@
+#![warn(missing_docs)]
 //! # cusip
 //!
 //! `cusip` provides a `CUSIP` type for working with validated Committee on Uniform Security
-//! Identification Procedures (CUSIP) identifiers as defined in
-//! [ANSI X9.6-2020](https://webstore.ansi.org/standards/ascx9/ansix92020).
+//! Identification Procedures (CUSIP) identifiers as defined in [ANSI X9.6-2020 Financial Services -
+//! Committee on Uniform Security Identification Procedures Securities Identification CUSIP](https://webstore.ansi.org/standards/ascx9/ansix92020)
+//! ("The Standard").
 //!
 //! [CUSIP Global Services (CGS)](https://www.cusip.com/) has [a page describing CUSIP
 //! identifiers](https://www.cusip.com/identifiers.html).
 //!
-//! A CUSIP is comprised of 9 ASCII characters with the following parts, in order:
+//! A CUSIP "number" (so-called by The Standard because originally they were composed only of
+//! decimal digits, but now they can also use letters) is comprised of 9 ASCII characters with the
+//! following parts, in order (Section 3.1 "CUSIP number length" of the standard):
 //!
-//! 1. A six-character upper-case alphanumeric _Issuer number_.
-//! 2. A two-character upper-case alphanumeric _Issue number_.
-//! 3. A single decimal digit representing the _check digit_ computed using what the standard calls
+//! 1. A six-character uppercase alphanumeric _Issuer Number_.
+//! 2. A two-character uppercase alphanumeric _Issue Number_.
+//! 3. A single decimal digit representing the _Check Digit_ computed using what The Standard calls
 //! the "modulus 10 'double-add-double' technique".
 //!
-//! Use the `parse_loose()` or `parse_strict()` methods to convert a string to a
-//! validated CUSIP.
+//! Note: The Standard does not specify uppercase for the alphabetic characters but uniformly
+//! presents examples only using uppercase. Therefore this implementation treats uppercase as
+//! required for both parsing and validation, while offering a `parse_loose()` alternative that
+//! allows mixed case. There is no "loose" version of validation because of the risk of confusion
+//! if it were used to validate a set of strings -- the number of distinct string values could
+//! differ from the number of distinct CUSIP identifiers because each identifier could have multiple
+//! string representations in the set, potentially resulting in data integrity problems.
 //!
-//! The ANSI standard defines three non-alphanumeric character values to support a special use for
-//! the "PPN System". They are '*' (value 36), '@' (value 37) and '#' (value 38). These CUSIP's are
-//! not supported by this crate because the additional characters are not supported by ISINs, and
-//! CUSIPs are incorporated as the _security identifier_ for ISINs for certain _country codes_.
+//! Although The Standard asserts that CUSIP numbers are not assigned using alphbetic 'I' and 'O'
+//! nor using digits '1' and '0' to avoid confusion, digits '1' and '0' are common in current
+//! real-world CUSIP numbers. A survey of a large set of values turned up none using letter 'I' or
+//! letter 'O', so it is plausible that 'I' and 'O' are indeed not used. In any case, this crate
+//! does _not_ treat any of these four character values as invalid.
+//!
+//! CUSIP number "issuance and dissemination" are managed by
+//! [CUSIP Global Services (CGS)](https://www.cusip.com/) per section B.1 "Registration Authority"
+//! of The Standard. In addition, there are provisions for privatly assigned identifiers (see
+//! below).
+//!
+//! ## Usage
+//!
+//! Use the `parse()` or `parse_loose()` functions to convert a string to a validated CUSIP:
+//!
+//! ```
+//! # let some_string = "09739D100";
+//! match cusip::parse(some_string) {
+//!     Ok(cusip) => { /* ... */ }
+//!     Err(err) => { /* ... */ }
+//! }
+//! ```
+//!
+//! or take advantage of CUSIP's implementation of the `FromStr` trait and use the `parse()` method
+//! on the `str` type:
+//!
+//! ```
+//! # let some_string = "09739D100";
+//! let cusip: cusip::CUSIP = some_string.parse().unwrap();
+//! ```
+//!
+//! If you just want to check if a string value is in a valid CUSIP format (with the correct _Check
+//! Digit_), use `validate()`.
+//!
+//! ```
+//! # let some_string = "09739D100";
+//! let is_valid_cusip = cusip::validate(some_string);
+//! ```
+//!
+//! ## CUSIP
+//!
+//! Since its adoption in 1968, CUSIP has been the standard security identifier for:
+//!
+//! * United States of America
+//! * Canada
+//! * Bermuda
+//! * Cayman Islands
+//! * British Virgin Islands
+//! * Jamaica
+//!
+//! Since the introduction of the ISIN standard
+//! ([ISO 6166](https://www.iso.org/standard/78502.html)), CUSIP has been adopted as the ISIN
+//! _Security Identifier_ for many more territories in the creation of ISIN identifiers.
+//!
+//! ## Private use identifiers
+//!
+//! In Section 3.2 "Issuer Number" of The Standard, "privately assigned identifiers" are defined as
+//! those having _Issuer Number_ ending in "990" through "999".
+//!
+//! You can use the `CUSIP::has_private_issuer()` method to detect this case.
+//!
+//! Such CUSIPs are reserved for this use only, and will not be assigned by the Registration
+//! Authority.
+//!
+//! ## CINS
+//!
+//! While the primary motivation for the creation of the CUSIP standard was representation of U.S.
+//! and Canadian securites, it was extended in 1989 for non-North American issues through definition
+//! of a CUSIP International Numbering System (CINS). On 1991-01-01 CINS became the only allowed way
+//! of issuing CUSIP identifiers for non-North American securities.
+//!
+//! A CUSIP with a letter in the first position is a CINS number, and that letter identifies the
+//! country or geographic region of the _Issuer_.
+//!
+//! Use the `CUSIP::is_cins()` method to discriminate between CINS and conventional CUSIPs, and the
+//! `CUSIP::cins_country_code()` method to extract the CINS Country Code as an `Option<char>`.
+//!
+//! The country codes are:
+//!
+//! |code|region        |code|region     |code|region       |code|region         |
+//! |----|--------------|----|-----------|----|-------------|----|---------------|
+//! |`A` |Austria       |`H` |Switzerland|`O` |(Unused)     |`V` |Africa - Other |
+//! |`B` |Belgium       |`I` |(Unused)   |`P` |South America|`W` |Sweden         |
+//! |`C` |Canada        |`J` |Japan      |`Q` |Australia    |`X` |Europe - Other |
+//! |`D` |Germany       |`K` |Denmark    |`R` |Norway       |`Y` |Asia           |
+//! |`E` |Spain         |`L` |Luxembourg |`S` |South Africa |`Z` |(Unused)       |
+//! |`F` |France        |`M` |Mid-East   |`T` |Italy        |    |               |
+//! |`G` |United Kingdom|`N` |Netherlands|`U` |United States|    |               |
+//!
+//! Even though country codes `I`, `O` and `Z` are unused, this crate reports CUSIPs starting
+//! with those letters as being in the CINS format via `CUSIP::is_cins()` and returns them via
+//! `CUSIP::cins_country_code()` because The Standard says CINS numbers are those CUSIPs starting
+//! with a letter. If you care about the distinction between the two, use `CUSIP::is_cins_base()`
+//! and `CUSIP::is_cins_extended()`.
+//!
+//! See section C.7.2 "Non-North American Issues -- CUSIP International Numbering System" of The
+//! Standard.
+//!
+//! ## PPN
+//!
+//! The Standard defines three non-alphanumeric character values to support a special use for
+//! the "PPN System". They are '`*`' (value 36), '`@`' (value 37) and '`#`' (value 38) (see section
+//! A.3 "Treatment of Alphabetic Characters".
+//!
+//! CUSIPs using these extended characters are not supported by this crate because the extended
+//! characters are not supported by ISINs, and CUSIPs are incorporated as the _Security Identifier_
+//! for ISINs for certain _Country Codes_.
+//!
+//! ## Related crates
+//!
+//! This crate is part of the Financial Identifiers series:
+//!
+//! * CUSIP -- Committee on Uniform Security Identification Procedures
+//! * [ISIN](https://crates.io/crates/isin) -- International Securities Identification Number
+//!
 
 use std::error::Error;
 use std::fmt::Formatter;
@@ -33,19 +153,37 @@ pub mod checksum;
 
 use checksum::checksum_table;
 
+/// All the ways parsing could fail.
 #[non_exhaustive]
 #[derive(Clone, PartialEq, Eq)]
 pub enum ParseError {
     /// The input length is not exactly 9 bytes.
-    InvalidLength { was: usize },
+    InvalidLength {
+        /** The length we found */
+        was: usize,
+    },
     /// The input issuer id is not six uppercase ASCII alphanumeric characters.
-    InvalidIssuerId { was: [u8; 6] },
+    InvalidIssuerNum {
+        /** The _Issuer Number_ we found */
+        was: [u8; 6],
+    },
     /// The input issue id is not two uppercase ASCII alphanumeric characters.
-    InvalidIssueId { was: [u8; 2] },
+    InvalidIssueNum {
+        /** The _Issue Number_ we found */
+        was: [u8; 2],
+    },
     /// The input check digit is not a single ASCII decimal digit character.
-    InvalidCheckDigit { was: u8 },
+    InvalidCheckDigit {
+        /** The _Check Digit_ we found */
+        was: u8,
+    },
     /// The input check digit has in a valid format, but has an incorrect value.
-    IncorrectCheckDigit { was: u8, expected: u8 },
+    IncorrectCheckDigit {
+        /** The _Check Digit_ we found */
+        was: u8,
+        /** The _Check Digit_ we expected */
+        expected: u8,
+    },
 }
 
 impl Debug for ParseError {
@@ -54,20 +192,20 @@ impl Debug for ParseError {
             ParseError::InvalidLength { was } => {
                 write!(f, "InvalidLength {{ was: {:?} }}", was)
             }
-            ParseError::InvalidIssuerId { was } => match std::str::from_utf8(was) {
+            ParseError::InvalidIssuerNum { was } => match std::str::from_utf8(was) {
                 Ok(s) => {
-                    write!(f, "InvalidIssuerId {{ was: {:?} }}", s)
+                    write!(f, "InvalidIssuerNum {{ was: {:?} }}", s)
                 }
                 Err(_) => {
-                    write!(f, "InvalidIssuerId {{ was: (invalid UTF-8) {:?} }}", was)
+                    write!(f, "InvalidIssuerNum {{ was: (invalid UTF-8) {:?} }}", was)
                 }
             },
-            ParseError::InvalidIssueId { was } => match std::str::from_utf8(was) {
+            ParseError::InvalidIssueNum { was } => match std::str::from_utf8(was) {
                 Ok(s) => {
-                    write!(f, "InvalidIssueId {{ was: {:?} }}", s)
+                    write!(f, "InvalidIssueNum {{ was: {:?} }}", s)
                 }
                 Err(_) => {
-                    write!(f, "InvalidIssueId {{ was: (invalid UTF-8) {:?} }}", was)
+                    write!(f, "InvalidIssueNum {{ was: (invalid UTF-8) {:?} }}", was)
                 }
             },
             ParseError::InvalidCheckDigit { was } => {
@@ -91,45 +229,45 @@ impl Display for ParseError {
             ParseError::InvalidLength { was } => {
                 write!(f, "invalid length {} bytes when expecting 9", was)
             }
-            ParseError::InvalidIssuerId { was } => match std::str::from_utf8(was) {
+            ParseError::InvalidIssuerNum { was } => match std::str::from_utf8(was) {
                 Ok(s) => {
                     write!(
                         f,
-                        "issuer id {:?} is not six uppercase ASCII alphanumeric characters",
+                        "Issuer Number {:?} is not six uppercase ASCII alphanumeric characters",
                         s
                     )
                 }
                 Err(_) => {
                     write!(f,
-                    "issuer id (invalid UTF-8) {:?} is not six uppercase ASCII alphanumeric characters",
+                    "Issuer Number (invalid UTF-8) {:?} is not six uppercase ASCII alphanumeric characters",
                     was)
                 }
             },
-            ParseError::InvalidIssueId { was } => match std::str::from_utf8(was) {
+            ParseError::InvalidIssueNum { was } => match std::str::from_utf8(was) {
                 Ok(s) => {
                     write!(
                         f,
-                        "issue id {:?} is not two uppercase ASCII alphanumeric characters",
+                        "Issue Number {:?} is not two uppercase ASCII alphanumeric characters",
                         s
                     )
                 }
                 Err(_) => {
                     write!(f,
-                "issue id (invalid UTF-8) {:?} is not two uppercase ASCII alphanumeric characters",
+                "Issue Number (invalid UTF-8) {:?} is not two uppercase ASCII alphanumeric characters",
                     was)
                 }
             },
             ParseError::InvalidCheckDigit { was } => {
                 write!(
                     f,
-                    "check digit {:?} is not one ASCII decimal digit",
+                    "Check Digit {:?} is not one ASCII decimal digit",
                     *was as char
                 )
             }
             ParseError::IncorrectCheckDigit { was, expected } => {
                 write!(
                     f,
-                    "incorrect check digit {:?} when expecting {:?}",
+                    "incorrect Check Digit {:?} when expecting {:?}",
                     char::from(*was),
                     char::from(*expected)
                 )
@@ -140,7 +278,7 @@ impl Display for ParseError {
 
 impl Error for ParseError {}
 
-/// Compute the _check digit_ for an array of u8. No attempt is made to ensure the input string
+/// Compute the _Check Digit_ for an array of u8. No attempt is made to ensure the input string
 /// is in the CUSIP payload format or length. If an illegal character (not an ASCII digit and not
 /// an ASCII uppercase letter) is encountered, this function will panic.
 pub fn compute_check_digit(s: &[u8]) -> u8 {
@@ -148,28 +286,31 @@ pub fn compute_check_digit(s: &[u8]) -> u8 {
     b'0' + sum
 }
 
-fn validate_issuer_id_format(id: &[u8]) -> Result<(), ParseError> {
-    for b in id {
+/// Check whether or not the passed _Issuer Number_ has a valid format.
+fn validate_issuer_num_format(num: &[u8]) -> Result<(), ParseError> {
+    for b in num {
         if !(b.is_ascii_digit() || (b.is_ascii_alphabetic() && b.is_ascii_uppercase())) {
             let mut id_copy: [u8; 6] = [0; 6];
-            id_copy.copy_from_slice(id);
-            return Err(ParseError::InvalidIssuerId { was: id_copy });
+            id_copy.copy_from_slice(num);
+            return Err(ParseError::InvalidIssuerNum { was: id_copy });
         }
     }
     Ok(())
 }
 
-fn validate_issue_id_format(id: &[u8]) -> Result<(), ParseError> {
-    for b in id {
+/// Check whether or not the passed _Issue Number_ has a valid format.
+fn validate_issue_num_format(num: &[u8]) -> Result<(), ParseError> {
+    for b in num {
         if !(b.is_ascii_digit() || (b.is_ascii_alphabetic() && b.is_ascii_uppercase())) {
             let mut id_copy: [u8; 2] = [0; 2];
-            id_copy.copy_from_slice(id);
-            return Err(ParseError::InvalidIssueId { was: id_copy });
+            id_copy.copy_from_slice(num);
+            return Err(ParseError::InvalidIssueNum { was: id_copy });
         }
     }
     Ok(())
 }
 
+/// Check whether or not the passed _Check Digit_ has a valid format.
 fn validate_check_digit_format(cd: u8) -> Result<(), ParseError> {
     if !cd.is_ascii_digit() {
         Err(ParseError::InvalidCheckDigit { was: cd })
@@ -182,31 +323,29 @@ fn validate_check_digit_format(cd: u8) -> Result<(), ParseError> {
 /// uppercase alphanumerics with no leading or trailing whitespace in addition to being the
 /// right length and format.
 pub fn parse(value: &str) -> Result<CUSIP, ParseError> {
-    let v: String = value.into();
-
-    if v.len() != 9 {
-        return Err(ParseError::InvalidLength { was: v.len() });
+    if value.len() != 9 {
+        return Err(ParseError::InvalidLength { was: value.len() });
     }
 
     // We make the preliminary assumption that the string is pure ASCII, so we work with the
     // underlying bytes. If there is Unicode in the string, the bytes will be outside the
     // allowed range and format validations will fail.
 
-    let b = v.as_bytes();
+    let b = value.as_bytes();
 
     // We slice out the three fields and validate their formats.
 
-    let issuer: &[u8] = &b[0..6];
-    validate_issuer_id_format(issuer)?;
+    let issuer_num: &[u8] = &b[0..6];
+    validate_issuer_num_format(issuer_num)?;
 
-    let issue: &[u8] = &b[6..8];
-    validate_issue_id_format(issue)?;
+    let issue_num: &[u8] = &b[6..8];
+    validate_issue_num_format(issue_num)?;
 
     let cd = b[8];
     validate_check_digit_format(cd)?;
 
-    // Now, we need to compute the correct check digit value from the "payload" (everything except
-    // the check digit).
+    // Now, we need to compute the correct _Check Digit_ value from the "payload" (everything except
+    // the _Check Digit_).
 
     let payload = &b[0..8];
 
@@ -234,12 +373,47 @@ pub fn parse_loose(value: &str) -> Result<CUSIP, ParseError> {
     parse(temp)
 }
 
+/// Test whether or not the passed string is in valid CUSIP format, without producing a CUSIP struct
+/// value.
 pub fn validate(value: &str) -> bool {
-    let temp = checksum_table(value.as_bytes());
-    println!("validate(): Checksum of {} is {}", value, temp);
-    temp == 0
+    if value.len() != 9 {
+        println!("Bad length: {:?}", value);
+        return false;
+    }
+
+    // We make the preliminary assumption that the string is pure ASCII, so we work with the
+    // underlying bytes. If there is Unicode in the string, the bytes will be outside the
+    // allowed range and format validations will fail.
+
+    let b = value.as_bytes();
+
+    // We slice out the three fields and validate their formats.
+
+    let issuer_num: &[u8] = &b[0..6];
+    if validate_issuer_num_format(issuer_num).is_err() {
+        return false;
+    }
+
+    let issue_num: &[u8] = &b[6..8];
+    if validate_issue_num_format(issue_num).is_err() {
+        return false;
+    }
+
+    let cd = b[8];
+    if validate_check_digit_format(cd).is_err() {
+        return false;
+    }
+
+    let payload = &b[0..8];
+
+    let computed_check_digit = compute_check_digit(payload);
+
+    let incorrect_check_digit = cd != computed_check_digit;
+
+    !incorrect_check_digit
 }
 
+/// A CUSIP in confirmed valid format.
 #[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Hash, Debug)]
 #[repr(transparent)]
 pub struct CUSIP([u8; 9]);
@@ -265,12 +439,51 @@ impl CUSIP {
         &self.0[..]
     }
 
-    /// Returns true if this CUSIP identifier is actually a CUSIP International Numbering System
-    /// (CINS) identifier, false otherwise.
+    /// Returns true if this CUSIP number is actually a CUSIP International Numbering System
+    /// (CINS) number, false otherwise (i.e., that it has a letter as the first character of its
+    /// _issuer number_). See also `is_cins_base()` and `is_cins_extended()`.
     pub fn is_cins(&self) -> bool {
         match self.as_bytes()[0] {
             (b'0'..=b'9') => false,
             (b'A'..=b'Z') => true,
+            x => panic!(
+                "It should not be possible to have a non-ASCII-alphanumeric value here: {:?}",
+                x
+            ),
+        }
+    }
+
+    /// Returns true if this CUSIP identifier is actually a CUSIP International Numbering System
+    /// (CINS) identifier (with the further restriction that it *does not* use 'I', 'O' or 'Z' as
+    /// its country code), false otherwise. See also `is_cins()` and `is_cins_extended()`.
+    pub fn is_cins_base(&self) -> bool {
+        match self.as_bytes()[0] {
+            (b'0'..=b'9') => false,
+            (b'A'..=b'H') => true,
+            b'I' => false,
+            (b'J'..=b'N') => true,
+            b'O' => false,
+            (b'P'..=b'Y') => true,
+            b'Z' => false,
+            x => panic!(
+                "It should not be possible to have a non-ASCII-alphanumeric value here: {:?}",
+                x
+            ),
+        }
+    }
+
+    /// Returns true if this CUSIP identifier is actually a CUSIP International Numbering System
+    /// (CINS) identifier (with the further restriction that it *does* use 'I', 'O' or 'Z' as its
+    /// country code), false otherwise.
+    pub fn is_cins_extended(&self) -> bool {
+        match self.as_bytes()[0] {
+            (b'0'..=b'9') => false,
+            (b'A'..=b'H') => false,
+            b'I' => true,
+            (b'J'..=b'N') => false,
+            b'O' => true,
+            (b'P'..=b'Y') => false,
+            b'Z' => true,
             x => panic!(
                 "It should not be possible to have a non-ASCII-alphanumeric value here: {:?}",
                 x
@@ -294,6 +507,13 @@ impl CUSIP {
     /// Return just the _issuer number_ portion of the CUSIP.
     pub fn issuer_num(&self) -> &str {
         unsafe { self.as_bytes()[0..6].to_str_unchecked() } // This is safe because we know it is ASCII
+    }
+
+    /// Returns true if the _issuer number_ ends in '990' through '999', which indicates a privately
+    /// assigned issuer.
+    pub fn has_private_issuer(&self) -> bool {
+        let bs = self.as_bytes();
+        bs[3] == b'9' && bs[4] == b'9' && (b'0'..=b'9').contains(&bs[5])
     }
 
     /// Return just the _issue number_ portion of the CUSIP.
@@ -347,7 +567,14 @@ mod tests {
 
     #[test]
     fn validate_cusip_for_bcc() {
+        // Boise Cascade
         assert!(true, validate("09739D100"))
+    }
+
+    #[test]
+    fn validate_cusip_for_dfs() {
+        // Discover Financial Services
+        assert!(true, validate("254709108"))
     }
 
     #[test]
@@ -396,18 +623,18 @@ mod tests {
     #[test]
     fn reject_lowercase_issuer_id_if_strict() {
         match parse("99999zAA5") {
-            Err(ParseError::InvalidIssuerId { was: _ }) => {} // Ok
+            Err(ParseError::InvalidIssuerNum { was: _ }) => {} // Ok
             Err(err) => {
                 assert!(
                     false,
-                    "Expected Err(InvalidIssuerId {{ ... }}), but got: Err({:?})",
+                    "Expected Err(InvalidIssuerNum {{ ... }}), but got: Err({:?})",
                     err
                 )
             }
             Ok(cusip) => {
                 assert!(
                     false,
-                    "Expected Err(InvalidIssuerId {{ ... }}), but got: Ok({:?})",
+                    "Expected Err(InvalidIssuerNum {{ ... }}), but got: Ok({:?})",
                     cusip
                 )
             }
@@ -417,18 +644,18 @@ mod tests {
     #[test]
     fn reject_lowercase_issue_id_if_strict() {
         match parse("99999Zaa5") {
-            Err(ParseError::InvalidIssueId { was: _ }) => {} // Ok
+            Err(ParseError::InvalidIssueNum { was: _ }) => {} // Ok
             Err(err) => {
                 assert!(
                     false,
-                    "Expected Err(InvalidIssueId {{ ... }}), but got: Err({:?})",
+                    "Expected Err(InvalidIssueNum {{ ... }}), but got: Err({:?})",
                     err
                 )
             }
             Ok(cusip) => {
                 assert!(
                     false,
-                    "Expected Err(InvalidIssueId {{ ... }}), but got: Ok({:?})",
+                    "Expected Err(InvalidIssueNum {{ ... }}), but got: Ok({:?})",
                     cusip
                 )
             }
@@ -563,6 +790,12 @@ mod tests {
         ];
         for case in cases.iter() {
             parse(case).unwrap();
+            assert_eq!(
+                true,
+                validate(case),
+                "Successfully parsed {:?} but got false from validate()!",
+                case
+            );
         }
     }
 

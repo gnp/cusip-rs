@@ -1,4 +1,7 @@
+#![warn(missing_docs)]
 //! # cusip::checksum
+//!
+//! Implementation of the checksum algorithm for CUSIP
 
 /// The numeric value of a u8 ASCII character. Digit characters '0' through '9' map to values 0
 /// through 9, and letter characters 'A' through 'Z' map to values 10 through 35.
@@ -68,6 +71,7 @@ const EVENS: [u8; 36] = [
 ///
 /// If an illegal character (not an ASCII digit and not an
 /// ASCII uppercase letter) is encountered, the char_value() function this calls will panic.
+// This should not be public, but it must be so tests and benches can see it
 pub fn checksum_simple(s: &[u8]) -> u8 {
     let mut sum: u8 = 0;
     for (i, c) in s.iter().enumerate() {

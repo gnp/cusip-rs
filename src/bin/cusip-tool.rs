@@ -4,10 +4,10 @@
 //! can be used to validate this crate considers them valid.
 //!
 //! As part of the `cusip` crate's initial validation, this tool was run on a file of 1,591,249
-//! unique CUSIPs produced by processing a file mappin LEIs to ISINs obtained from GLEIF. The
+//! unique CUSIPs produced by processing a file mapping LEIs to ISINs obtained from GLEIF. The
 //! [GLEIF file](https://www.gleif.org/en/lei-data/lei-mapping/download-isin-to-lei-relationship-files)
-//! is very large (the version from 2021-02-09 was about 170MB). Here are a few example rows for US
-//! ISINS:
+//! is very large (the version from 2021-02-09 was about 170MB). Here are a few example records for
+//! US ISINS:
 //!
 //! ```sh
 //! grep ',US' ISIN_LEI_20210209.csv | head
@@ -35,24 +35,46 @@
 //!
 //! This file was still about 4.2MB for the version tested.
 //!
-//! But, having produced it, it is now possible to run the file through this tool. From the source
+//! Having produced the file, it is now possible to run it through this tool. From the source
 //! directory of this crate, you can run:
 //!
 //! ```sh
 //! gzcat cusips-us.txt.gz| cargo run cusip-tool
 //! ```
 //!
-//! And, if all goes well, there will be no panic (and, no output either, currently).
+//! And, output will be something like this:
+//!
+//! ```text
+//! Read 1591249 values; 1591249 were valid CUSIPs and 0 were not.
+//! ```
+//!
+//! If no bad values were found, the tool will exit with zero status, else non-zero.
 
 use std::io;
 use std::io::prelude::*;
-use cusip;
 
 #[doc(hidden)]
 fn main() {
+    let mut good = 0u64;
+    let mut bad = 0u64;
+
     let stdin = io::stdin();
     for line in stdin.lock().lines() {
         let line = line.unwrap();
-        cusip::parse(&line).unwrap();
+        if cusip::validate(&line) {
+            good += 1
+        } else {
+            bad += 1
+        }
     }
+
+    println!(
+        "Read {} values; {} were valid CUSIPs and {} were not.",
+        good + bad,
+        good,
+        bad
+    );
+
+    let result = if bad == 0 { 0 } else { 1 };
+    std::process::exit(result);
 }

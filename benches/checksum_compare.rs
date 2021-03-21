@@ -10,6 +10,8 @@ const PAYLOADS: [&str; 3] = [
 ];
 
 fn bench_checksums(c: &mut Criterion) {
+    println!("bench_checksums module path is: {}", std::module_path!());
+
     let mut group = c.benchmark_group("Checksum");
     for p in PAYLOADS.iter() {
         group.bench_with_input(BenchmarkId::new("Simple", p), p, |b, p| {
