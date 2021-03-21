@@ -1,8 +1,7 @@
 cusip
 ====
-An `CUSIP` type for working with validated International Security Identifiers (CUSIPs) as defined by [ANSI X9.6-2020]
-(https://webstore.ansi.org/standards/ascx9/ansix92020).
-
+An `CUSIP` type for working with validated Committee on Uniform Security Identification Procedures (CUSIP) identifiers
+as defined in [ANSI X9.6-2020](https://webstore.ansi.org/standards/ascx9/ansix92020).
 
 ## Usage
 
