@@ -173,7 +173,6 @@
 //! * [ISIN](https://crates.io/crates/isin) -- International Securities Identification Number
 //!
 
-use std::error::Error;
 use std::fmt::Formatter;
 use std::fmt::{Debug, Display};
 use std::str::FromStr;
@@ -184,163 +183,8 @@ pub mod checksum;
 
 use checksum::checksum_table;
 
-/// All the ways parsing could fail.
-#[non_exhaustive]
-#[derive(Clone, PartialEq, Eq)]
-pub enum CUSIPError {
-    /// The CUSIP length is not exactly 9 bytes (checked when parsing).
-    InvalidCUSIPLength {
-        /// The length we found
-        was: usize,
-    },
-    /// The _Payload_ length is not exactly 8 bytes (checked when building).
-    InvalidPayloadLength {
-        /// The length we found
-        was: usize,
-    },
-    /// The _Issuer Number_ length is not exactly 6 bytes (checked when building).
-    InvalidIssuerNumLength {
-        /// The length we found
-        was: usize,
-    },
-    /// The _Issue Number_ length is not exactly 6 bytes (checked when building).
-    InvalidIssueNumLength {
-        /// The length we found
-        was: usize,
-    },
-    /// The input issuer id is not six uppercase ASCII alphanumeric characters (checked when parsing or building).
-    InvalidIssuerNum {
-        /// The _Issuer Number_ we found
-        was: [u8; 6],
-    },
-    /// The input issue id is not two uppercase ASCII alphanumeric characters (checked when parsing or building).
-    InvalidIssueNum {
-        /// The _Issue Number_ we found
-        was: [u8; 2],
-    },
-    /// The input check digit is not a single ASCII decimal digit character (checked when parsing).
-    InvalidCheckDigit {
-        /// The _Check Digit_ we found
-        was: u8,
-    },
-    /// The input check digit has in a valid format, but has an incorrect value (checked when parsing).
-    IncorrectCheckDigit {
-        /// The _Check Digit_ we found
-        was: u8,
-        /// The _Check Digit_ we expected
-        expected: u8,
-    },
-}
-
-impl Debug for CUSIPError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CUSIPError::InvalidCUSIPLength { was } => {
-                write!(f, "InvalidCUSIPLength {{ was: {:?} }}", was)
-            },
-            CUSIPError::InvalidPayloadLength { was } => {
-                write!(f, "InvalidPayloadLength {{ was: {:?} }}", was)
-            },
-            CUSIPError::InvalidIssuerNumLength { was } => {
-                write!(f, "InvalidIssuerNumLength {{ was: {:?} }}", was)
-            },
-            CUSIPError::InvalidIssueNumLength { was } => {
-                write!(f, "InvalidIssueNumLength {{ was: {:?} }}", was)
-            },
-            CUSIPError::InvalidIssuerNum { was } => match std::str::from_utf8(was) {
-                Ok(s) => {
-                    write!(f, "InvalidIssuerNum {{ was: {:?} }}", s)
-                }
-                Err(_) => {
-                    write!(f, "InvalidIssuerNum {{ was: (invalid UTF-8) {:?} }}", was)
-                }
-            },
-            CUSIPError::InvalidIssueNum { was } => match std::str::from_utf8(was) {
-                Ok(s) => {
-                    write!(f, "InvalidIssueNum {{ was: {:?} }}", s)
-                }
-                Err(_) => {
-                    write!(f, "InvalidIssueNum {{ was: (invalid UTF-8) {:?} }}", was)
-                }
-            },
-            CUSIPError::InvalidCheckDigit { was } => {
-                write!(f, "InvalidCheckDigit {{ was: {:?} }}", char::from(*was))
-            }
-            CUSIPError::IncorrectCheckDigit { was, expected } => {
-                write!(
-                    f,
-                    "IncorrectCheckDigit {{ was: {:?}, expected: {:?} }}",
-                    char::from(*was),
-                    char::from(*expected)
-                )
-            }
-        }
-    }
-}
-
-impl Display for CUSIPError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CUSIPError::InvalidCUSIPLength { was } => {
-                write!(f, "invalid CUSIP length {} bytes when expecting 9", was)
-            }
-            CUSIPError::InvalidPayloadLength { was } => {
-                write!(f, "invalid Payload length {} bytes when expecting 8", was)
-            }
-            CUSIPError::InvalidIssuerNumLength { was } => {
-                write!(f, "invalid Issuer Number length {} bytes when expecting 6", was)
-            }
-            CUSIPError::InvalidIssueNumLength { was } => {
-                write!(f, "invalid Issue Number length {} bytes when expecting 2", was)
-            }
-            CUSIPError::InvalidIssuerNum { was } => match std::str::from_utf8(was) {
-                Ok(s) => {
-                    write!(
-                        f,
-                        "Issuer Number {:?} is not six uppercase ASCII alphanumeric characters",
-                        s
-                    )
-                }
-                Err(_) => {
-                    write!(f,
-                    "Issuer Number (invalid UTF-8) {:?} is not six uppercase ASCII alphanumeric characters",
-                    was)
-                }
-            },
-            CUSIPError::InvalidIssueNum { was } => match std::str::from_utf8(was) {
-                Ok(s) => {
-                    write!(
-                        f,
-                        "Issue Number {:?} is not two uppercase ASCII alphanumeric characters",
-                        s
-                    )
-                }
-                Err(_) => {
-                    write!(f,
-                "Issue Number (invalid UTF-8) {:?} is not two uppercase ASCII alphanumeric characters",
-                    was)
-                }
-            },
-            CUSIPError::InvalidCheckDigit { was } => {
-                write!(
-                    f,
-                    "Check Digit {:?} is not one ASCII decimal digit",
-                    *was as char
-                )
-            }
-            CUSIPError::IncorrectCheckDigit { was, expected } => {
-                write!(
-                    f,
-                    "incorrect Check Digit {:?} when expecting {:?}",
-                    char::from(*was),
-                    char::from(*expected)
-                )
-            }
-        }
-    }
-}
-
-impl Error for CUSIPError {}
+pub mod error;
+pub use error::CUSIPError;
 
 /// Compute the _Check Digit_ for an array of u8. No attempt is made to ensure the input string
 /// is in the CUSIP payload format or length. If an illegal character (not an ASCII digit and not
@@ -463,13 +307,17 @@ pub fn build_from_payload(payload: &str) -> Result<CUSIP, CUSIPError> {
 /// automatically computed.
 pub fn build_from_parts(issuer_num: &str, issue_num: &str) -> Result<CUSIP, CUSIPError> {
     if issuer_num.len() != 6 {
-        return Err(CUSIPError::InvalidIssuerNumLength { was: issuer_num.len() });
+        return Err(CUSIPError::InvalidIssuerNumLength {
+            was: issuer_num.len(),
+        });
     }
     let issuer_num: &[u8] = &issuer_num.as_bytes()[0..6];
     validate_issuer_num_format(issuer_num)?;
 
     if issue_num.len() != 2 {
-        return Err(CUSIPError::InvalidIssueNumLength { was: issue_num.len() });
+        return Err(CUSIPError::InvalidIssueNumLength {
+            was: issue_num.len(),
+        });
     }
     let issue_num: &[u8] = &issue_num.as_bytes()[0..2];
     validate_issue_num_format(issue_num)?;
@@ -627,7 +475,8 @@ impl CUSIP {
         let case1 = bs[3] == b'9' && bs[4] == b'9';
 
         // "99000?" to "99999?"
-        let case2 = bs[0] == b'9' && bs[1] == b'9'
+        let case2 = bs[0] == b'9'
+            && bs[1] == b'9'
             && (b'0'..=b'9').contains(&bs[2])
             && (b'0'..=b'9').contains(&bs[3])
             && (b'0'..=b'9').contains(&bs[4]);
