@@ -80,17 +80,47 @@
 //! ([ISO 6166](https://www.iso.org/standard/78502.html)), CUSIP has been adopted as the ISIN
 //! _Security Identifier_ for many more territories in the creation of ISIN identifiers.
 //!
-//! ## Private use identifiers
+//! ## Private use
+//!
+//! The CUSIP code space has allocations for both private _Issuer Numbers_ and private _Issue
+//! Numbers_.
+//!
+//! You can determine whether or not a CUSIP is intended for private use by using the
+//! `CUSIP::is_private_use()` method. A private use CUSIP is one that either `has_private_issuer()`
+//! or `is_private_issue()`. The has/is distinction is because a CUSIP represents ("is") an Issue
+//! (Security) offered by an "Issuer" (the Security "has" an Issuer).
+//!
+//! ### Private Issue Numbers
 //!
 //! In Section 3.2 "Issuer Number" of The Standard, "privately assigned identifiers" are defined as
 //! those having _Issuer Number_ ending in "990" through "999".
 //!
-//! You can use the `CUSIP::has_private_issuer()` method to detect this case.
+//! In Section C.8.1.3 "Issuer Numbers Reserved for Internal Use" of the Standard, expands that set
+//! with the following additional _Issuer Numbers_:
+//!
+//! * those ending in "99A" through "99Z"
+//! * those from "990000" through "999999"
+//! * those from "99000A" through "99999Z"
 //!
 //! Such CUSIPs are reserved for this use only, and will not be assigned by the Registration
 //! Authority.
 //!
-//! ## CINS
+//! You can use the `CUSIP::has_private_issuer()` method to detect this case.
+//!
+//! Note that The Standard says that in all cases a "Z" in the "5th and 6th position has been
+//! reserved for use by the Canadian Depository for Securities." There are no examples given, and it
+//! is not clear whether this means literally "and" ("0000ZZ005" would be reserved but "0000Z0002"
+//! and "00000Z003" would not) or if it actually means "and/or" (all of "0000ZZ005", "0000Z0002" and
+//! "00000Z003" would be reserved). Because this is not clear from the text of the standard, this
+//! rule is not represented in this crate.
+//!
+//! ### Private Issuer Numbers
+//!
+//! In Section C.8.2.6 "Issue Numbers Reserved for Internal Use", The Standard specifies that
+//! _Issue Numbers_ "90" through "99" and "9A" through "9Y" are reserved for private use,
+//! potentially in combination with non-private-use _Issuer Numbers_.
+//!
+//! ## CUSIP International Numbering System (CINS)
 //!
 //! While the primary motivation for the creation of the CUSIP standard was representation of U.S.
 //! and Canadian securites, it was extended in 1989 for non-North American issues through definition
@@ -124,8 +154,9 @@
 //! See section C.7.2 "Non-North American Issues -- CUSIP International Numbering System" of The
 //! Standard.
 //!
-//! ## PPN
+//! ## Private Placement Number (PPN)
 //!
+//! According to Section C.7.2 "Private Placements" of The Standard,
 //! The Standard defines three non-alphanumeric character values to support a special use for
 //! the "PPN System". They are '`*`' (value 36), '`@`' (value 37) and '`#`' (value 38) (see section
 //! A.3 "Treatment of Alphabetic Characters".
@@ -156,43 +187,67 @@ use checksum::checksum_table;
 /// All the ways parsing could fail.
 #[non_exhaustive]
 #[derive(Clone, PartialEq, Eq)]
-pub enum ParseError {
-    /// The input length is not exactly 9 bytes.
-    InvalidLength {
-        /** The length we found */
+pub enum CUSIPError {
+    /// The CUSIP length is not exactly 9 bytes (checked when parsing).
+    InvalidCUSIPLength {
+        /// The length we found
         was: usize,
     },
-    /// The input issuer id is not six uppercase ASCII alphanumeric characters.
+    /// The _Payload_ length is not exactly 8 bytes (checked when building).
+    InvalidPayloadLength {
+        /// The length we found
+        was: usize,
+    },
+    /// The _Issuer Number_ length is not exactly 6 bytes (checked when building).
+    InvalidIssuerNumLength {
+        /// The length we found
+        was: usize,
+    },
+    /// The _Issue Number_ length is not exactly 6 bytes (checked when building).
+    InvalidIssueNumLength {
+        /// The length we found
+        was: usize,
+    },
+    /// The input issuer id is not six uppercase ASCII alphanumeric characters (checked when parsing or building).
     InvalidIssuerNum {
-        /** The _Issuer Number_ we found */
+        /// The _Issuer Number_ we found
         was: [u8; 6],
     },
-    /// The input issue id is not two uppercase ASCII alphanumeric characters.
+    /// The input issue id is not two uppercase ASCII alphanumeric characters (checked when parsing or building).
     InvalidIssueNum {
-        /** The _Issue Number_ we found */
+        /// The _Issue Number_ we found
         was: [u8; 2],
     },
-    /// The input check digit is not a single ASCII decimal digit character.
+    /// The input check digit is not a single ASCII decimal digit character (checked when parsing).
     InvalidCheckDigit {
-        /** The _Check Digit_ we found */
+        /// The _Check Digit_ we found
         was: u8,
     },
-    /// The input check digit has in a valid format, but has an incorrect value.
+    /// The input check digit has in a valid format, but has an incorrect value (checked when parsing).
     IncorrectCheckDigit {
-        /** The _Check Digit_ we found */
+        /// The _Check Digit_ we found
         was: u8,
-        /** The _Check Digit_ we expected */
+        /// The _Check Digit_ we expected
         expected: u8,
     },
 }
 
-impl Debug for ParseError {
+impl Debug for CUSIPError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            ParseError::InvalidLength { was } => {
-                write!(f, "InvalidLength {{ was: {:?} }}", was)
-            }
-            ParseError::InvalidIssuerNum { was } => match std::str::from_utf8(was) {
+            CUSIPError::InvalidCUSIPLength { was } => {
+                write!(f, "InvalidCUSIPLength {{ was: {:?} }}", was)
+            },
+            CUSIPError::InvalidPayloadLength { was } => {
+                write!(f, "InvalidPayloadLength {{ was: {:?} }}", was)
+            },
+            CUSIPError::InvalidIssuerNumLength { was } => {
+                write!(f, "InvalidIssuerNumLength {{ was: {:?} }}", was)
+            },
+            CUSIPError::InvalidIssueNumLength { was } => {
+                write!(f, "InvalidIssueNumLength {{ was: {:?} }}", was)
+            },
+            CUSIPError::InvalidIssuerNum { was } => match std::str::from_utf8(was) {
                 Ok(s) => {
                     write!(f, "InvalidIssuerNum {{ was: {:?} }}", s)
                 }
@@ -200,7 +255,7 @@ impl Debug for ParseError {
                     write!(f, "InvalidIssuerNum {{ was: (invalid UTF-8) {:?} }}", was)
                 }
             },
-            ParseError::InvalidIssueNum { was } => match std::str::from_utf8(was) {
+            CUSIPError::InvalidIssueNum { was } => match std::str::from_utf8(was) {
                 Ok(s) => {
                     write!(f, "InvalidIssueNum {{ was: {:?} }}", s)
                 }
@@ -208,10 +263,10 @@ impl Debug for ParseError {
                     write!(f, "InvalidIssueNum {{ was: (invalid UTF-8) {:?} }}", was)
                 }
             },
-            ParseError::InvalidCheckDigit { was } => {
+            CUSIPError::InvalidCheckDigit { was } => {
                 write!(f, "InvalidCheckDigit {{ was: {:?} }}", char::from(*was))
             }
-            ParseError::IncorrectCheckDigit { was, expected } => {
+            CUSIPError::IncorrectCheckDigit { was, expected } => {
                 write!(
                     f,
                     "IncorrectCheckDigit {{ was: {:?}, expected: {:?} }}",
@@ -223,13 +278,22 @@ impl Debug for ParseError {
     }
 }
 
-impl Display for ParseError {
+impl Display for CUSIPError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            ParseError::InvalidLength { was } => {
-                write!(f, "invalid length {} bytes when expecting 9", was)
+            CUSIPError::InvalidCUSIPLength { was } => {
+                write!(f, "invalid CUSIP length {} bytes when expecting 9", was)
             }
-            ParseError::InvalidIssuerNum { was } => match std::str::from_utf8(was) {
+            CUSIPError::InvalidPayloadLength { was } => {
+                write!(f, "invalid Payload length {} bytes when expecting 8", was)
+            }
+            CUSIPError::InvalidIssuerNumLength { was } => {
+                write!(f, "invalid Issuer Number length {} bytes when expecting 6", was)
+            }
+            CUSIPError::InvalidIssueNumLength { was } => {
+                write!(f, "invalid Issue Number length {} bytes when expecting 2", was)
+            }
+            CUSIPError::InvalidIssuerNum { was } => match std::str::from_utf8(was) {
                 Ok(s) => {
                     write!(
                         f,
@@ -243,7 +307,7 @@ impl Display for ParseError {
                     was)
                 }
             },
-            ParseError::InvalidIssueNum { was } => match std::str::from_utf8(was) {
+            CUSIPError::InvalidIssueNum { was } => match std::str::from_utf8(was) {
                 Ok(s) => {
                     write!(
                         f,
@@ -257,14 +321,14 @@ impl Display for ParseError {
                     was)
                 }
             },
-            ParseError::InvalidCheckDigit { was } => {
+            CUSIPError::InvalidCheckDigit { was } => {
                 write!(
                     f,
                     "Check Digit {:?} is not one ASCII decimal digit",
                     *was as char
                 )
             }
-            ParseError::IncorrectCheckDigit { was, expected } => {
+            CUSIPError::IncorrectCheckDigit { was, expected } => {
                 write!(
                     f,
                     "incorrect Check Digit {:?} when expecting {:?}",
@@ -276,7 +340,7 @@ impl Display for ParseError {
     }
 }
 
-impl Error for ParseError {}
+impl Error for CUSIPError {}
 
 /// Compute the _Check Digit_ for an array of u8. No attempt is made to ensure the input string
 /// is in the CUSIP payload format or length. If an illegal character (not an ASCII digit and not
@@ -287,33 +351,33 @@ pub fn compute_check_digit(s: &[u8]) -> u8 {
 }
 
 /// Check whether or not the passed _Issuer Number_ has a valid format.
-fn validate_issuer_num_format(num: &[u8]) -> Result<(), ParseError> {
+fn validate_issuer_num_format(num: &[u8]) -> Result<(), CUSIPError> {
     for b in num {
         if !(b.is_ascii_digit() || (b.is_ascii_alphabetic() && b.is_ascii_uppercase())) {
             let mut id_copy: [u8; 6] = [0; 6];
             id_copy.copy_from_slice(num);
-            return Err(ParseError::InvalidIssuerNum { was: id_copy });
+            return Err(CUSIPError::InvalidIssuerNum { was: id_copy });
         }
     }
     Ok(())
 }
 
 /// Check whether or not the passed _Issue Number_ has a valid format.
-fn validate_issue_num_format(num: &[u8]) -> Result<(), ParseError> {
+fn validate_issue_num_format(num: &[u8]) -> Result<(), CUSIPError> {
     for b in num {
         if !(b.is_ascii_digit() || (b.is_ascii_alphabetic() && b.is_ascii_uppercase())) {
             let mut id_copy: [u8; 2] = [0; 2];
             id_copy.copy_from_slice(num);
-            return Err(ParseError::InvalidIssueNum { was: id_copy });
+            return Err(CUSIPError::InvalidIssueNum { was: id_copy });
         }
     }
     Ok(())
 }
 
 /// Check whether or not the passed _Check Digit_ has a valid format.
-fn validate_check_digit_format(cd: u8) -> Result<(), ParseError> {
+fn validate_check_digit_format(cd: u8) -> Result<(), CUSIPError> {
     if !cd.is_ascii_digit() {
-        Err(ParseError::InvalidCheckDigit { was: cd })
+        Err(CUSIPError::InvalidCheckDigit { was: cd })
     } else {
         Ok(())
     }
@@ -322,9 +386,9 @@ fn validate_check_digit_format(cd: u8) -> Result<(), ParseError> {
 /// Parse a string to a valid CUSIP or an error, requiring the string to already be only
 /// uppercase alphanumerics with no leading or trailing whitespace in addition to being the
 /// right length and format.
-pub fn parse(value: &str) -> Result<CUSIP, ParseError> {
+pub fn parse(value: &str) -> Result<CUSIP, CUSIPError> {
     if value.len() != 9 {
-        return Err(ParseError::InvalidLength { was: value.len() });
+        return Err(CUSIPError::InvalidCUSIPLength { was: value.len() });
     }
 
     // We make the preliminary assumption that the string is pure ASCII, so we work with the
@@ -353,7 +417,7 @@ pub fn parse(value: &str) -> Result<CUSIP, ParseError> {
 
     let incorrect_check_digit = cd != computed_check_digit;
     if incorrect_check_digit {
-        return Err(ParseError::IncorrectCheckDigit {
+        return Err(CUSIPError::IncorrectCheckDigit {
             was: cd,
             expected: computed_check_digit,
         });
@@ -367,10 +431,56 @@ pub fn parse(value: &str) -> Result<CUSIP, ParseError> {
 /// Parse a string to a valid CUSIP or an error message, allowing the string to contain leading
 /// or trailing whitespace and/or lowercase letters as long as it is otherwise the right length
 /// and format.
-pub fn parse_loose(value: &str) -> Result<CUSIP, ParseError> {
+pub fn parse_loose(value: &str) -> Result<CUSIP, CUSIPError> {
     let uc = value.to_ascii_uppercase();
     let temp = uc.trim();
     parse(temp)
+}
+
+/// Build a CUSIP from a _Payload_ (an already-concatenated _Issuer Number_ and _Issue Number_). The
+/// _Check Digit is automatically computed.
+pub fn build_from_payload(payload: &str) -> Result<CUSIP, CUSIPError> {
+    if payload.len() != 8 {
+        return Err(CUSIPError::InvalidPayloadLength { was: payload.len() });
+    }
+    let b = &payload.as_bytes()[0..8];
+
+    let issuer_num = &b[0..6];
+    validate_issuer_num_format(issuer_num)?;
+
+    let issue_num = &b[6..8];
+    validate_issue_num_format(issue_num)?;
+
+    let mut bb = [0u8; 9];
+
+    bb[0..8].copy_from_slice(b);
+    bb[8] = compute_check_digit(b);
+
+    Ok(CUSIP(bb))
+}
+
+/// Build a CUSIP from its parts: an _Issuer Number_ and an _Issue Number_. The _Check Digit_ is
+/// automatically computed.
+pub fn build_from_parts(issuer_num: &str, issue_num: &str) -> Result<CUSIP, CUSIPError> {
+    if issuer_num.len() != 6 {
+        return Err(CUSIPError::InvalidIssuerNumLength { was: issuer_num.len() });
+    }
+    let issuer_num: &[u8] = &issuer_num.as_bytes()[0..6];
+    validate_issuer_num_format(issuer_num)?;
+
+    if issue_num.len() != 2 {
+        return Err(CUSIPError::InvalidIssueNumLength { was: issue_num.len() });
+    }
+    let issue_num: &[u8] = &issue_num.as_bytes()[0..2];
+    validate_issue_num_format(issue_num)?;
+
+    let mut bb = [0u8; 9];
+
+    bb[0..6].copy_from_slice(issuer_num);
+    bb[6..8].copy_from_slice(issue_num);
+    bb[8] = compute_check_digit(&bb[0..8]);
+
+    Ok(CUSIP(bb))
 }
 
 /// Test whether or not the passed string is in valid CUSIP format, without producing a CUSIP struct
@@ -426,7 +536,7 @@ impl Display for CUSIP {
 }
 
 impl FromStr for CUSIP {
-    type Err = ParseError;
+    type Err = CUSIPError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         parse_loose(s)
@@ -504,29 +614,53 @@ impl CUSIP {
         }
     }
 
-    /// Return just the _issuer number_ portion of the CUSIP.
+    /// Return just the _Issuer Number_ portion of the CUSIP.
     pub fn issuer_num(&self) -> &str {
         unsafe { self.as_bytes()[0..6].to_str_unchecked() } // This is safe because we know it is ASCII
     }
 
-    /// Returns true if the _issuer number_ ends in '990' through '999', which indicates a privately
-    /// assigned issuer.
+    /// Returns true if the _Issuer Number_ is reserved for private use.
     pub fn has_private_issuer(&self) -> bool {
         let bs = self.as_bytes();
-        bs[3] == b'9' && bs[4] == b'9' && (b'0'..=b'9').contains(&bs[5])
+
+        // "???99?"
+        let case1 = bs[3] == b'9' && bs[4] == b'9';
+
+        // "99000?" to "99999?"
+        let case2 = bs[0] == b'9' && bs[1] == b'9'
+            && (b'0'..=b'9').contains(&bs[2])
+            && (b'0'..=b'9').contains(&bs[3])
+            && (b'0'..=b'9').contains(&bs[4]);
+
+        case1 || case2
     }
 
-    /// Return just the _issue number_ portion of the CUSIP.
+    /// Return just the _Issue Number_ portion of the CUSIP.
     pub fn issue_num(&self) -> &str {
         unsafe { self.as_bytes()[6..8].to_str_unchecked() } // This is safe because we know it is ASCII
     }
 
-    /// Return the &ldquo;payload&rdquo; &mdash; everything except the check digit.
+    /// Returns true if the _Issue Number_ is reserved for private use.
+    pub fn is_private_issue(&self) -> bool {
+        let bs = self.as_bytes();
+        let nine_tens = bs[6] == b'9';
+        let digit_ones = (b'0'..=b'9').contains(&bs[7]);
+        let letter_ones = (b'A'..=b'Y').contains(&bs[7]);
+        nine_tens && (digit_ones || letter_ones)
+    }
+
+    /// Returns true if the CUSIP is reserved for private use (i.e., either it has a private issuer
+    /// or it is a private issue).
+    pub fn is_private_use(&self) -> bool {
+        self.has_private_issuer() || self.is_private_issue()
+    }
+
+    /// Return the _Payload_ &mdash; everything except the _Check Digit_.
     pub fn payload(&self) -> &str {
         unsafe { self.as_bytes()[0..8].to_str_unchecked() } // This is safe because we know it is ASCII
     }
 
-    /// Return just the _check digit_ portion of the CUSIP.
+    /// Return just the _Check Digit_ portion of the CUSIP.
     pub fn check_digit(&self) -> char {
         self.as_bytes()[8] as char
     }
@@ -623,7 +757,7 @@ mod tests {
     #[test]
     fn reject_lowercase_issuer_id_if_strict() {
         match parse("99999zAA5") {
-            Err(ParseError::InvalidIssuerNum { was: _ }) => {} // Ok
+            Err(CUSIPError::InvalidIssuerNum { was: _ }) => {} // Ok
             Err(err) => {
                 assert!(
                     false,
@@ -644,7 +778,7 @@ mod tests {
     #[test]
     fn reject_lowercase_issue_id_if_strict() {
         match parse("99999Zaa5") {
-            Err(ParseError::InvalidIssueNum { was: _ }) => {} // Ok
+            Err(CUSIPError::InvalidIssueNum { was: _ }) => {} // Ok
             Err(err) => {
                 assert!(
                     false,

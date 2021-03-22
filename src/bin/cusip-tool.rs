@@ -49,32 +49,90 @@
 //! ```
 //!
 //! If no bad values were found, the tool will exit with zero status, else non-zero.
+//!
+//! ## Fix mode
+//!
+//! If you run with argument `--fix`, then any input CUSIPs that are only wrong due to incorrect
+//! _Check Digit_ will be fixed. In this mode, every good and every fixable input CUSIP is printed
+//! to standard output.
 
+use std::env;
 use std::io;
 use std::io::prelude::*;
 
+use bstr::ByteSlice;
+
 #[doc(hidden)]
 fn main() {
+    let mut fix: bool = false;
+
+    let args: Vec<String> = env::args().collect();
+    eprintln!("args: {:?}", args);
+    if args.len() == 2 && args[1] == "--fix" {
+        fix = true;
+    } else if args.len() != 1 {
+        eprintln!("usage: cusip-tool [--fix]");
+        std::process::exit(1);
+    }
+
     let mut good = 0u64;
     let mut bad = 0u64;
+    let mut fixed = 0u64;
 
     let stdin = io::stdin();
     for line in stdin.lock().lines() {
         let line = line.unwrap();
-        if cusip::validate(&line) {
-            good += 1
-        } else {
-            bad += 1
+        match cusip::parse(&line) {
+            Ok(cusip) => {
+                good += 1;
+                if fix {
+                    println!("{}", cusip);
+                }
+            }
+            Err(cusip::CUSIPError::IncorrectCheckDigit { was: _, expected: _ }) => {
+                bad += 1;
+                fixed += 1;
+                if fix {
+                    let payload = &line.as_bytes()[0..8]; // We know it was the right length
+                    let payload = unsafe { payload.to_str_unchecked() }; // We know it is ASCII
+
+                    // We know the Check Digit was the only problem, so we can safely unwrap()
+                    let cusip = cusip::build_from_payload(payload).unwrap();
+                    println!("{}", cusip);
+                }
+
+            }
+            Err(err) => {
+                eprintln!("Input: {}; Error: {}", line, err);
+                bad += 1;
+            }
         }
     }
 
-    println!(
-        "Read {} values; {} were valid CUSIPs and {} were not.",
-        good + bad,
-        good,
-        bad
-    );
+    if fix {
+        eprintln!(
+            "Read {} values; {} were valid CUSIPs and {} were not. Fixed {}; Omitted {}.",
+            good + bad,
+            good,
+            bad,
+            fixed,
+            bad - fixed
+        );
 
-    let result = if bad == 0 { 0 } else { 1 };
-    std::process::exit(result);
+        if bad > fixed {
+            std::process::exit(1);
+        } else {
+            std::process::exit(0);
+        }
+    } else {
+        eprintln!(
+            "Read {} values; {} were valid CUSIPs and {} were not.",
+            good + bad,
+            good,
+            bad
+        );
+
+        let result = if bad == 0 { 0 } else { 1 };
+        std::process::exit(result);
+    }
 }
