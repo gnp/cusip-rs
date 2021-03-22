@@ -29,6 +29,15 @@ match cusip::parse_strict(cusip_string) {
 }
 ```
 
+
+## Related Crates
+
+This crate is part of the Financial Identifiers series:
+
+* CUSIP -- Committee on Uniform Security Identification Procedures
+* [ISIN](https://crates.io/crates/isin) -- International Securities Identification Number
+
+
 ## License
 
 Licensed under either of
