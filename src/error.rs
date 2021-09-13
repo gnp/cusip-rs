@@ -7,7 +7,7 @@ use std::error::Error;
 use std::fmt::Formatter;
 use std::fmt::{Debug, Display};
 
-/// All the ways parsing could fail.
+/// All the ways parsing or building could fail.
 #[non_exhaustive]
 #[derive(Clone, PartialEq, Eq)]
 pub enum CUSIPError {
