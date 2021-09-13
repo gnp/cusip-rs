@@ -39,7 +39,7 @@
 //! directory of this crate, you can run:
 //!
 //! ```sh
-//! gzcat cusips-us.txt.gz| cargo run cusip-tool
+//! gzcat cusips-us.txt.gz | cargo run cusip-tool
 //! ```
 //!
 //! And, output will be something like this:
