@@ -67,7 +67,6 @@ fn main() {
     let mut fix: bool = false;
 
     let args: Vec<String> = env::args().collect();
-    eprintln!("args: {:?}", args);
     if args.len() == 2 && args[1] == "--fix" {
         fix = true;
     } else if args.len() != 1 {
