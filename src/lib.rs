@@ -169,8 +169,9 @@
 //!
 //! This crate is part of the Financial Identifiers series:
 //!
-//! * CUSIP -- Committee on Uniform Security Identification Procedures
-//! * [ISIN](https://crates.io/crates/isin) -- International Securities Identification Number
+//! * [CUSIP](https://crates.io/crates/cusip): Committee on Uniform Security Identification Procedures (ANSI X9.6-2020)
+//! * [ISIN](https://crates.io/crates/isin): International Securities Identification Number (ISO 6166:2021)
+//! * [LEI](https://crates.io/crates/lei): Legal Entity Identifier (ISO 17442:2020)
 //!
 
 use std::fmt::Formatter;
@@ -196,6 +197,10 @@ pub fn compute_check_digit(s: &[u8]) -> u8 {
 
 /// Check whether or not the passed _Issuer Number_ has a valid format.
 fn validate_issuer_num_format(num: &[u8]) -> Result<(), CUSIPError> {
+    if num.len() != 6 {
+        panic!("Expected 6 bytes for Issuer Num, but got {}", num.len());
+    }
+
     for b in num {
         if !(b.is_ascii_digit() || (b.is_ascii_alphabetic() && b.is_ascii_uppercase())) {
             let mut id_copy: [u8; 6] = [0; 6];
@@ -208,6 +213,10 @@ fn validate_issuer_num_format(num: &[u8]) -> Result<(), CUSIPError> {
 
 /// Check whether or not the passed _Issue Number_ has a valid format.
 fn validate_issue_num_format(num: &[u8]) -> Result<(), CUSIPError> {
+    if num.len() != 2 {
+        panic!("Expected 2 bytes for Issue Num, but got {}", num.len());
+    }
+
     for b in num {
         if !(b.is_ascii_digit() || (b.is_ascii_alphabetic() && b.is_ascii_uppercase())) {
             let mut id_copy: [u8; 2] = [0; 2];
@@ -335,7 +344,6 @@ pub fn build_from_parts(issuer_num: &str, issue_num: &str) -> Result<CUSIP, CUSI
 /// value.
 pub fn validate(value: &str) -> bool {
     if value.len() != 9 {
-        println!("Bad length: {:?}", value);
         return false;
     }
 
@@ -357,8 +365,8 @@ pub fn validate(value: &str) -> bool {
         return false;
     }
 
-    let cd = b[8];
-    if validate_check_digit_format(cd).is_err() {
+    let check_digit = b[8];
+    if validate_check_digit_format(check_digit).is_err() {
         return false;
     }
 
@@ -366,7 +374,7 @@ pub fn validate(value: &str) -> bool {
 
     let computed_check_digit = compute_check_digit(payload);
 
-    let incorrect_check_digit = cd != computed_check_digit;
+    let incorrect_check_digit = check_digit != computed_check_digit;
 
     !incorrect_check_digit
 }
@@ -374,6 +382,7 @@ pub fn validate(value: &str) -> bool {
 /// A CUSIP in confirmed valid format.
 #[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Hash, Debug)]
 #[repr(transparent)]
+#[allow(clippy::upper_case_acronyms)]
 pub struct CUSIP([u8; 9]);
 
 impl Display for CUSIP {
@@ -551,13 +560,13 @@ mod tests {
     #[test]
     fn validate_cusip_for_bcc() {
         // Boise Cascade
-        assert!(true, validate("09739D100"))
+        assert!(true, "{}", validate("09739D100"))
     }
 
     #[test]
     fn validate_cusip_for_dfs() {
         // Discover Financial Services
-        assert!(true, validate("254709108"))
+        assert!(true, "{}", validate("254709108"))
     }
 
     #[test]
@@ -594,7 +603,7 @@ mod tests {
     /// Modulus 10 Double-Add-Double Technique".
     #[test]
     fn validate_example_from_standard() {
-        assert!(true, validate("837649128"))
+        assert!(true, "{}", validate("837649128"))
     }
 
     #[test]
