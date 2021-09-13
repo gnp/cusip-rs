@@ -26,7 +26,7 @@
 //! differ from the number of distinct CUSIP identifiers because each identifier could have multiple
 //! string representations in the set, potentially resulting in data integrity problems.
 //!
-//! Although The Standard asserts that CUSIP numbers are not assigned using alphbetic 'I' and 'O'
+//! Although The Standard asserts that CUSIP numbers are not assigned using alphabetic 'I' and 'O'
 //! nor using digits '1' and '0' to avoid confusion, digits '1' and '0' are common in current
 //! real-world CUSIP numbers. A survey of a large set of values turned up none using letter 'I' or
 //! letter 'O', so it is plausible that 'I' and 'O' are indeed not used. In any case, this crate
@@ -34,7 +34,7 @@
 //!
 //! CUSIP number "issuance and dissemination" are managed by
 //! [CUSIP Global Services (CGS)](https://www.cusip.com/) per section B.1 "Registration Authority"
-//! of The Standard. In addition, there are provisions for privatly assigned identifiers (see
+//! of The Standard. In addition, there are provisions for privately assigned identifiers (see
 //! below).
 //!
 //! ## Usage
@@ -123,7 +123,7 @@
 //! ## CUSIP International Numbering System (CINS)
 //!
 //! While the primary motivation for the creation of the CUSIP standard was representation of U.S.
-//! and Canadian securites, it was extended in 1989 for non-North American issues through definition
+//! and Canadian securities, it was extended in 1989 for non-North American issues through definition
 //! of a CUSIP International Numbering System (CINS). On 1991-01-01 CINS became the only allowed way
 //! of issuing CUSIP identifiers for non-North American securities.
 //!
@@ -282,7 +282,7 @@ pub fn parse_loose(value: &str) -> Result<CUSIP, CUSIPError> {
 }
 
 /// Build a CUSIP from a _Payload_ (an already-concatenated _Issuer Number_ and _Issue Number_). The
-/// _Check Digit is automatically computed.
+/// _Check Digit_ is automatically computed.
 pub fn build_from_payload(payload: &str) -> Result<CUSIP, CUSIPError> {
     if payload.len() != 8 {
         return Err(CUSIPError::InvalidPayloadLength { was: payload.len() });
