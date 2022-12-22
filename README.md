@@ -24,7 +24,7 @@ cusip = "0.2"
 ```rust
 use cusip;
 let cusip_string = "023135106"; // Amazon.com Inc - Common Stock
-match cusip::parse_strict(cusip_string) {
+match cusip::parse(cusip_string) {
     Ok(cusip) => {
         println!("Parsed CUSIP: {}", cusip.to_string()); // "023135106"
         println!("  Issuer number: {}", cusip.issuer_num()); // "023135"
