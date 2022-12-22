@@ -174,8 +174,7 @@
 //! * [LEI](https://crates.io/crates/lei): Legal Entity Identifier (ISO 17442:2020)
 //!
 
-use std::fmt::Formatter;
-use std::fmt::{Debug, Display};
+use std::fmt;
 use std::str::FromStr;
 
 use bstr::ByteSlice;
@@ -384,15 +383,22 @@ pub fn validate(value: &str) -> bool {
 pub struct ReadmeDoctests;
 
 /// A CUSIP in confirmed valid format.
-#[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Hash, Debug)]
+#[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Hash)]
 #[repr(transparent)]
 #[allow(clippy::upper_case_acronyms)]
 pub struct CUSIP([u8; 9]);
 
-impl Display for CUSIP {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for CUSIP {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
         let temp = unsafe { self.as_bytes().to_str_unchecked() }; // This is safe because we know it is ASCII
         write!(f, "{}", temp)
+    }
+}
+
+impl fmt::Debug for CUSIP {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let temp = unsafe { self.as_bytes().to_str_unchecked() }; // This is safe because we know it is ASCII
+        write!(f, "CUSIP({})", temp)
     }
 }
 
