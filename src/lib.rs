@@ -383,6 +383,13 @@ pub fn validate(value: &str) -> bool {
 pub struct ReadmeDoctests;
 
 /// A CUSIP in confirmed valid format.
+///
+/// You cannot construct a CUSIP value manually. This does not compile:
+///
+/// ```compile_fail
+/// use cusip;
+/// let cannot_construct = cusip::CUSIP([0_u8; 9]);
+/// ```
 #[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Hash)]
 #[repr(transparent)]
 #[allow(clippy::upper_case_acronyms)]
