@@ -85,7 +85,7 @@ fn main() {
             Ok(cusip) => {
                 good += 1;
                 if fix {
-                    println!("{}", cusip);
+                    println!("{cusip}");
                 }
             }
             Err(cusip::CUSIPError::IncorrectCheckDigit {
@@ -100,11 +100,11 @@ fn main() {
 
                     // We know the Check Digit was the only problem, so we can safely unwrap()
                     let cusip = cusip::build_from_payload(payload).unwrap();
-                    println!("{}", cusip);
+                    println!("{cusip}");
                 }
             }
             Err(err) => {
-                eprintln!("Input: {}; Error: {}", line, err);
+                eprintln!("Input: {line}; Error: {err}");
                 bad += 1;
             }
         }

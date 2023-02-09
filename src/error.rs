@@ -59,31 +59,31 @@ impl Debug for CUSIPError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             CUSIPError::InvalidCUSIPLength { was } => {
-                write!(f, "InvalidCUSIPLength {{ was: {:?} }}", was)
+                write!(f, "InvalidCUSIPLength {{ was: {was:?} }}")
             }
             CUSIPError::InvalidPayloadLength { was } => {
-                write!(f, "InvalidPayloadLength {{ was: {:?} }}", was)
+                write!(f, "InvalidPayloadLength {{ was: {was:?} }}")
             }
             CUSIPError::InvalidIssuerNumLength { was } => {
-                write!(f, "InvalidIssuerNumLength {{ was: {:?} }}", was)
+                write!(f, "InvalidIssuerNumLength {{ was: {was:?} }}")
             }
             CUSIPError::InvalidIssueNumLength { was } => {
-                write!(f, "InvalidIssueNumLength {{ was: {:?} }}", was)
+                write!(f, "InvalidIssueNumLength {{ was: {was:?} }}")
             }
             CUSIPError::InvalidIssuerNum { was } => match std::str::from_utf8(was) {
                 Ok(s) => {
-                    write!(f, "InvalidIssuerNum {{ was: {:?} }}", s)
+                    write!(f, "InvalidIssuerNum {{ was: {s:?} }}")
                 }
                 Err(_) => {
-                    write!(f, "InvalidIssuerNum {{ was: (invalid UTF-8) {:?} }}", was)
+                    write!(f, "InvalidIssuerNum {{ was: (invalid UTF-8) {was:?} }}")
                 }
             },
             CUSIPError::InvalidIssueNum { was } => match std::str::from_utf8(was) {
                 Ok(s) => {
-                    write!(f, "InvalidIssueNum {{ was: {:?} }}", s)
+                    write!(f, "InvalidIssueNum {{ was: {s:?} }}")
                 }
                 Err(_) => {
-                    write!(f, "InvalidIssueNum {{ was: (invalid UTF-8) {:?} }}", was)
+                    write!(f, "InvalidIssueNum {{ was: (invalid UTF-8) {was:?} }}")
                 }
             },
             CUSIPError::InvalidCheckDigit { was } => {
@@ -105,51 +105,47 @@ impl Display for CUSIPError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             CUSIPError::InvalidCUSIPLength { was } => {
-                write!(f, "invalid CUSIP length {} bytes when expecting 9", was)
+                write!(f, "invalid CUSIP length {was} bytes when expecting 9")
             }
             CUSIPError::InvalidPayloadLength { was } => {
-                write!(f, "invalid Payload length {} bytes when expecting 8", was)
+                write!(f, "invalid Payload length {was} bytes when expecting 8")
             }
             CUSIPError::InvalidIssuerNumLength { was } => {
                 write!(
                     f,
-                    "invalid Issuer Number length {} bytes when expecting 6",
-                    was
+                    "invalid Issuer Number length {was} bytes when expecting 6"
                 )
             }
             CUSIPError::InvalidIssueNumLength { was } => {
                 write!(
                     f,
-                    "invalid Issue Number length {} bytes when expecting 2",
-                    was
+                    "invalid Issue Number length {was} bytes when expecting 2"
                 )
             }
             CUSIPError::InvalidIssuerNum { was } => match std::str::from_utf8(was) {
                 Ok(s) => {
                     write!(
                         f,
-                        "Issuer Number {:?} is not six uppercase ASCII alphanumeric characters",
-                        s
+                        "Issuer Number {s:?} is not six uppercase ASCII alphanumeric characters"
                     )
                 }
                 Err(_) => {
                     write!(f,
-                    "Issuer Number (invalid UTF-8) {:?} is not six uppercase ASCII alphanumeric characters",
-                    was)
+                    "Issuer Number (invalid UTF-8) {was:?} is not six uppercase ASCII alphanumeric characters"
+                    )
                 }
             },
             CUSIPError::InvalidIssueNum { was } => match std::str::from_utf8(was) {
                 Ok(s) => {
                     write!(
                         f,
-                        "Issue Number {:?} is not two uppercase ASCII alphanumeric characters",
-                        s
+                        "Issue Number {s:?} is not two uppercase ASCII alphanumeric characters"
                     )
                 }
                 Err(_) => {
                     write!(f,
-                "Issue Number (invalid UTF-8) {:?} is not two uppercase ASCII alphanumeric characters",
-                    was)
+                "Issue Number (invalid UTF-8) {was:?} is not two uppercase ASCII alphanumeric characters"
+                    )
                 }
             },
             CUSIPError::InvalidCheckDigit { was } => {

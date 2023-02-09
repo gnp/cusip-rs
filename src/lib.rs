@@ -398,14 +398,14 @@ pub struct CUSIP([u8; 9]);
 impl fmt::Display for CUSIP {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
         let temp = unsafe { self.as_bytes().to_str_unchecked() }; // This is safe because we know it is ASCII
-        write!(f, "{}", temp)
+        write!(f, "{temp}")
     }
 }
 
 impl fmt::Debug for CUSIP {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let temp = unsafe { self.as_bytes().to_str_unchecked() }; // This is safe because we know it is ASCII
-        write!(f, "CUSIP({})", temp)
+        write!(f, "CUSIP({temp})")
     }
 }
 
@@ -431,8 +431,7 @@ impl CUSIP {
             (b'0'..=b'9') => false,
             (b'A'..=b'Z') => true,
             x => panic!(
-                "It should not be possible to have a non-ASCII-alphanumeric value here: {:?}",
-                x
+                "It should not be possible to have a non-ASCII-alphanumeric value here: {x:?}"
             ),
         }
     }
@@ -450,8 +449,7 @@ impl CUSIP {
             (b'P'..=b'Y') => true,
             b'Z' => false,
             x => panic!(
-                "It should not be possible to have a non-ASCII-alphanumeric value here: {:?}",
-                x
+                "It should not be possible to have a non-ASCII-alphanumeric value here: {x:?}"
             ),
         }
     }
@@ -469,8 +467,7 @@ impl CUSIP {
             (b'P'..=b'Y') => false,
             b'Z' => true,
             x => panic!(
-                "It should not be possible to have a non-ASCII-alphanumeric value here: {:?}",
-                x
+                "It should not be possible to have a non-ASCII-alphanumeric value here: {x:?}"
             ),
         }
     }
@@ -482,8 +479,7 @@ impl CUSIP {
             (b'0'..=b'9') => None,
             x @ (b'A'..=b'Z') => Some(x as char),
             x => panic!(
-                "It should not be possible to have a non-ASCII-alphanumeric value here: {:?}",
-                x
+                "It should not be possible to have a non-ASCII-alphanumeric value here: {x:?}"
             ),
         }
     }
