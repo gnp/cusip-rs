@@ -175,9 +175,8 @@
 //!
 
 use std::fmt;
+use std::str::from_utf8_unchecked;
 use std::str::FromStr;
-
-use bstr::ByteSlice;
 
 pub mod checksum;
 
@@ -397,14 +396,14 @@ pub struct CUSIP([u8; 9]);
 
 impl fmt::Display for CUSIP {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
-        let temp = unsafe { self.as_bytes().to_str_unchecked() }; // This is safe because we know it is ASCII
+        let temp = unsafe { from_utf8_unchecked(self.as_bytes()) }; // This is safe because we know it is ASCII
         write!(f, "{temp}")
     }
 }
 
 impl fmt::Debug for CUSIP {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let temp = unsafe { self.as_bytes().to_str_unchecked() }; // This is safe because we know it is ASCII
+        let temp = unsafe { from_utf8_unchecked(self.as_bytes()) }; // This is safe because we know it is ASCII
         write!(f, "CUSIP({temp})")
     }
 }
@@ -486,7 +485,7 @@ impl CUSIP {
 
     /// Return just the _Issuer Number_ portion of the CUSIP.
     pub fn issuer_num(&self) -> &str {
-        unsafe { self.as_bytes()[0..6].to_str_unchecked() } // This is safe because we know it is ASCII
+        unsafe { from_utf8_unchecked(&self.as_bytes()[0..6]) } // This is safe because we know it is ASCII
     }
 
     /// Returns true if the _Issuer Number_ is reserved for private use.
@@ -508,7 +507,7 @@ impl CUSIP {
 
     /// Return just the _Issue Number_ portion of the CUSIP.
     pub fn issue_num(&self) -> &str {
-        unsafe { self.as_bytes()[6..8].to_str_unchecked() } // This is safe because we know it is ASCII
+        unsafe { from_utf8_unchecked(&self.as_bytes()[6..8]) } // This is safe because we know it is ASCII
     }
 
     /// Returns true if the _Issue Number_ is reserved for private use.
@@ -528,7 +527,7 @@ impl CUSIP {
 
     /// Return the _Payload_ &mdash; everything except the _Check Digit_.
     pub fn payload(&self) -> &str {
-        unsafe { self.as_bytes()[0..8].to_str_unchecked() } // This is safe because we know it is ASCII
+        unsafe { from_utf8_unchecked(&self.as_bytes()[0..8]) } // This is safe because we know it is ASCII
     }
 
     /// Return just the _Check Digit_ portion of the CUSIP.

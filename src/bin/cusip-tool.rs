@@ -59,8 +59,7 @@
 use std::env;
 use std::io;
 use std::io::prelude::*;
-
-use bstr::ByteSlice;
+use std::str::from_utf8_unchecked;
 
 #[doc(hidden)]
 fn main() {
@@ -96,7 +95,7 @@ fn main() {
                 fixed += 1;
                 if fix {
                     let payload = &line.as_bytes()[0..8]; // We know it was the right length
-                    let payload = unsafe { payload.to_str_unchecked() }; // We know it is ASCII
+                    let payload = unsafe { from_utf8_unchecked(payload) }; // We know it is ASCII
 
                     // We know the Check Digit was the only problem, so we can safely unwrap()
                     let cusip = cusip::build_from_payload(payload).unwrap();
