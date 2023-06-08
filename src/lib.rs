@@ -499,9 +499,9 @@ impl CUSIP {
         // "99000?" to "99999?"
         let case2 = bs[0] == b'9'
             && bs[1] == b'9'
-            && (b'0'..=b'9').contains(&bs[2])
-            && (b'0'..=b'9').contains(&bs[3])
-            && (b'0'..=b'9').contains(&bs[4]);
+            && (bs[2].is_ascii_digit())
+            && (bs[3].is_ascii_digit())
+            && (bs[4].is_ascii_digit());
 
         case1 || case2
     }
@@ -515,7 +515,7 @@ impl CUSIP {
     pub fn is_private_issue(&self) -> bool {
         let bs = self.as_bytes();
         let nine_tens = bs[6] == b'9';
-        let digit_ones = (b'0'..=b'9').contains(&bs[7]);
+        let digit_ones = bs[7].is_ascii_digit();
         let letter_ones = (b'A'..=b'Y').contains(&bs[7]);
         nine_tens && (digit_ones || letter_ones)
     }
