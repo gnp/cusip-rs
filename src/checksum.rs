@@ -118,7 +118,7 @@ pub fn checksum_table(s: &[u8]) -> u8 {
         } else {
             ODDS[v as usize]
         };
-        // Cannot trigger on input < 28 bytes long because floor((255 - 14) / 14) = 27.
+        // Cannot trigger on input < 28 bytes long because floor((255 - 9) / 9) = 27.
         if sum > MAX_ACCUM_TABLE {
             sum %= 10
         }
