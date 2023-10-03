@@ -389,7 +389,7 @@ pub struct ReadmeDoctests;
 /// use cusip;
 /// let cannot_construct = cusip::CUSIP([0_u8; 9]);
 /// ```
-#[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Hash)]
+#[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Hash)]
 #[repr(transparent)]
 #[allow(clippy::upper_case_acronyms)]
 pub struct CUSIP([u8; 9]);
