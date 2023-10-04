@@ -1,5 +1,3 @@
-use cusip;
-
 fn main() {
     let cusip_string = "023135106"; // Amazon.com Inc - Common Stock
     match cusip::parse(cusip_string) {
