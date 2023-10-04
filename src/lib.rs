@@ -549,9 +549,9 @@ mod tests {
                 assert_eq!(cusip.issuer_num(), "09739D");
                 assert_eq!(cusip.issue_num(), "10");
                 assert_eq!(cusip.check_digit(), '0');
-                assert_eq!(cusip.is_cins(), false);
+                assert!(!cusip.is_cins());
             }
-            Err(err) => assert!(false, "Did not expect parsing to fail: {}", err),
+            Err(err) => panic!("Did not expect parsing to fail: {}", err),
         }
     }
 
@@ -563,22 +563,22 @@ mod tests {
                 assert_eq!(cusip.issuer_num(), "09739D");
                 assert_eq!(cusip.issue_num(), "10");
                 assert_eq!(cusip.check_digit(), '0');
-                assert_eq!(cusip.is_cins(), false);
+                assert!(!cusip.is_cins());
             }
-            Err(err) => assert!(false, "Did not expect parsing to fail: {}", err),
+            Err(err) => panic!("Did not expect parsing to fail: {}", err),
         }
     }
 
     #[test]
     fn validate_cusip_for_bcc() {
         // Boise Cascade
-        assert!(true, "{}", validate("09739D100"))
+        assert!(validate("09739D100"))
     }
 
     #[test]
     fn validate_cusip_for_dfs() {
         // Discover Financial Services
-        assert!(true, "{}", validate("254709108"))
+        assert!(validate("254709108"))
     }
 
     #[test]
@@ -589,9 +589,9 @@ mod tests {
                 assert_eq!(cusip.issuer_num(), "S08000");
                 assert_eq!(cusip.issue_num(), "AA");
                 assert_eq!(cusip.check_digit(), '9');
-                assert_eq!(cusip.is_cins(), true);
+                assert!(cusip.is_cins());
             }
-            Err(err) => assert!(false, "Did not expect parsing to fail: {}", err),
+            Err(err) => panic!("Did not expect parsing to fail: {}", err),
         }
     }
 
@@ -605,9 +605,9 @@ mod tests {
                 assert_eq!(cusip.issuer_num(), "837649");
                 assert_eq!(cusip.issue_num(), "12");
                 assert_eq!(cusip.check_digit(), '8');
-                assert_eq!(cusip.is_cins(), false);
+                assert!(!cusip.is_cins());
             }
-            Err(err) => assert!(false, "Did not expect parsing to fail: {}", err),
+            Err(err) => panic!("Did not expect parsing to fail: {}", err),
         }
     }
 
@@ -615,7 +615,7 @@ mod tests {
     /// Modulus 10 Double-Add-Double Technique".
     #[test]
     fn validate_example_from_standard() {
-        assert!(true, "{}", validate("837649128"))
+        assert!(validate("837649128"))
     }
 
     #[test]
@@ -629,15 +629,13 @@ mod tests {
         match parse("99999zAA5") {
             Err(CUSIPError::InvalidIssuerNum { was: _ }) => {} // Ok
             Err(err) => {
-                assert!(
-                    false,
+                panic!(
                     "Expected Err(InvalidIssuerNum {{ ... }}), but got: Err({:?})",
                     err
                 )
             }
             Ok(cusip) => {
-                assert!(
-                    false,
+                panic!(
                     "Expected Err(InvalidIssuerNum {{ ... }}), but got: Ok({:?})",
                     cusip
                 )
@@ -650,15 +648,13 @@ mod tests {
         match parse("99999Zaa5") {
             Err(CUSIPError::InvalidIssueNum { was: _ }) => {} // Ok
             Err(err) => {
-                assert!(
-                    false,
+                panic!(
                     "Expected Err(InvalidIssueNum {{ ... }}), but got: Err({:?})",
                     err
                 )
             }
             Ok(cusip) => {
-                assert!(
-                    false,
+                panic!(
                     "Expected Err(InvalidIssueNum {{ ... }}), but got: Ok({:?})",
                     cusip
                 )
@@ -794,8 +790,7 @@ mod tests {
         ];
         for case in cases.iter() {
             parse(case).unwrap();
-            assert_eq!(
-                true,
+            assert!(
                 validate(case),
                 "Successfully parsed {:?} but got false from validate()!",
                 case
