@@ -138,7 +138,7 @@ mod tests {
     // which exercises the EVEN table, as counted from the *right*.
     #[test]
     fn single_chars_right_of_zero() {
-        for c in ('0'..='9').into_iter().chain(('A'..='Z').into_iter()) {
+        for c in ('0'..='9').chain('A'..='Z') {
             let s = format!("0{}", c);
             let ss = s.as_bytes();
             let a = checksum_simple(&ss);
@@ -156,7 +156,7 @@ mod tests {
     // which exercises the ODD table, as counted from the *right*.
     #[test]
     fn single_chars_left_of_zero() {
-        for c in ('0'..='9').into_iter().chain(('A'..='Z').into_iter()) {
+        for c in ('0'..='9').chain('A'..='Z') {
             let s = format!("{}0", c);
             let ss = s.as_bytes();
             let a = checksum_simple(&ss);
