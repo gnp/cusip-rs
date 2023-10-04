@@ -141,8 +141,8 @@ mod tests {
         for c in ('0'..='9').chain('A'..='Z') {
             let s = format!("0{}", c);
             let ss = s.as_bytes();
-            let a = checksum_simple(&ss);
-            let b = checksum_table(&ss);
+            let a = checksum_simple(ss);
+            let b = checksum_table(ss);
             assert_eq!(
                 a, b,
                 "checksum from table style {} should equal that from simple style {} for \"{}\"",
@@ -159,8 +159,8 @@ mod tests {
         for c in ('0'..='9').chain('A'..='Z') {
             let s = format!("{}0", c);
             let ss = s.as_bytes();
-            let a = checksum_simple(&ss);
-            let b = checksum_table(&ss);
+            let a = checksum_simple(ss);
+            let b = checksum_table(ss);
             assert_eq!(
                 a, b,
                 "checksum from table style {} should equal that from simple style {} for \"{}\"",
@@ -173,8 +173,8 @@ mod tests {
         #[test]
         fn processes_all_valid_strings(s in "[0-9A-Z]{8}") {
             let ss = s.as_bytes();
-            let a = checksum_simple(&ss);
-            let b = checksum_table(&ss);
+            let a = checksum_simple(ss);
+            let b = checksum_table(ss);
             assert_eq!(
                 a, b,
                 "checksum from table style {} should equal that from simple style {} for \"{}\"",
