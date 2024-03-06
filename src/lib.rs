@@ -485,7 +485,12 @@ impl CUSIP {
 
     /// Return just the _Issuer Number_ portion of the CUSIP.
     pub fn issuer_num(&self) -> &str {
-        unsafe { from_utf8_unchecked(&self.as_bytes()[0..6]) } // This is safe because we know it is ASCII
+        if self.is_cins() { // This is safe because we know it is ASCII
+            // CINS excludes country code
+            unsafe { from_utf8_unchecked(&self.as_bytes()[1..6]) } 
+        } else {
+            unsafe { from_utf8_unchecked(&self.as_bytes()[0..6]) }
+        }
     }
 
     /// Returns true if the _Issuer Number_ is reserved for private use.
