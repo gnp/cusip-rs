@@ -246,6 +246,7 @@ pub fn parse(value: &str) -> Result<CUSIP, CUSIPError> {
 /// Parse a string to a valid CUSIP or an error message, allowing the string to contain leading
 /// or trailing whitespace and/or lowercase letters as long as it is otherwise the right length
 /// and format.
+#[inline]
 pub fn parse_loose(value: &str) -> Result<CUSIP, CUSIPError> {
     let uc = value.to_ascii_uppercase();
     let temp = uc.trim();
