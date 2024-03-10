@@ -238,45 +238,9 @@ fn validate_check_digit_format(cd: u8) -> Result<(), CUSIPError> {
 /// uppercase alphanumerics with no leading or trailing whitespace in addition to being the
 /// right length and format.
 pub fn parse(value: &str) -> Result<CUSIP, CUSIPError> {
-    if value.len() != 9 {
-        return Err(CUSIPError::InvalidCUSIPLength { was: value.len() });
-    }
+    let bytes = value.as_bytes();
 
-    // We make the preliminary assumption that the string is pure ASCII, so we work with the
-    // underlying bytes. If there is Unicode in the string, the bytes will be outside the
-    // allowed range and format validations will fail.
-
-    let b = value.as_bytes();
-
-    // We slice out the three fields and validate their formats.
-
-    let issuer_num: &[u8] = &b[0..6];
-    validate_issuer_num_format(issuer_num)?;
-
-    let issue_num: &[u8] = &b[6..8];
-    validate_issue_num_format(issue_num)?;
-
-    let cd = b[8];
-    validate_check_digit_format(cd)?;
-
-    // Now, we need to compute the correct _Check Digit_ value from the "payload" (everything except
-    // the _Check Digit_).
-
-    let payload = &b[0..8];
-
-    let computed_check_digit = compute_check_digit(payload);
-
-    let incorrect_check_digit = cd != computed_check_digit;
-    if incorrect_check_digit {
-        return Err(CUSIPError::IncorrectCheckDigit {
-            was: cd,
-            expected: computed_check_digit,
-        });
-    }
-
-    let mut bb = [0u8; 9];
-    bb.copy_from_slice(b);
-    Ok(CUSIP(bb))
+    CUSIP::from_bytes(bytes)
 }
 
 /// Parse a string to a valid CUSIP or an error message, allowing the string to contain leading
@@ -417,6 +381,64 @@ impl FromStr for CUSIP {
 }
 
 impl CUSIP {
+    /// Constructs a `CUSIP` from a byte array of length 9.
+    ///
+    /// The byte array must contain only ASCII alphanumeric characters.
+    /// The first 8 characters represent the issuer and issue numbers,
+    /// and the 9th character is the check digit.
+    ///
+    /// # Errors
+    ///
+    /// Returns `CUSIPError` if the byte array is not a valid CUSIP.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use cusip::{CUSIP, CUSIPError};
+    ///
+    /// let bytes = *b"037833100";
+    /// let cusip = CUSIP::from_bytes(&bytes).unwrap();
+    /// assert_eq!(cusip.to_string(), "037833100");
+    ///
+    /// let invalid_bytes = *b"invalid!!";
+    /// assert!(CUSIP::from_bytes(&invalid_bytes).is_err());
+    /// ```
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, CUSIPError> {
+        if bytes.len() != 9 {
+            return Err(CUSIPError::InvalidCUSIPLength { was: bytes.len() });
+        }
+
+        // We slice out the three fields and validate their formats.
+
+        let issuer_num: &[u8] = &bytes[0..6];
+        validate_issuer_num_format(issuer_num)?;
+
+        let issue_num: &[u8] = &bytes[6..8];
+        validate_issue_num_format(issue_num)?;
+
+        let cd = bytes[8];
+        validate_check_digit_format(cd)?;
+
+        // Now, we need to compute the correct _Check Digit_ value from the "payload" (everything except
+        // the _Check Digit_).
+
+        let payload = &bytes[0..8];
+
+        let computed_check_digit = compute_check_digit(payload);
+
+        let incorrect_check_digit = cd != computed_check_digit;
+        if incorrect_check_digit {
+            return Err(CUSIPError::IncorrectCheckDigit {
+                was: cd,
+                expected: computed_check_digit,
+            });
+        }
+
+        let mut bb = [0u8; 9];
+        bb.copy_from_slice(bytes);
+        Ok(CUSIP(bb))
+    }
+
     /// Internal convenience function for treating the ASCII characters as a byte-array slice.
     fn as_bytes(&self) -> &[u8] {
         &self.0[..]
