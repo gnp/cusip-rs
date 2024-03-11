@@ -133,6 +133,13 @@
 //! Use the `CUSIP::is_cins()` method to discriminate between CINS and conventional CUSIPs, and the
 //! `CUSIP::cins_country_code()` method to extract the CINS Country Code as an `Option<char>`.
 //!
+//! This crate provides a `CINS` type for working with CINS identifiers. You can convert a `CUSIP`
+//! to a `CINS` using `CINS::new`, `TryFrom<&CUSIP>`, or `CUSIP::as_cins`. Once you have a `CINS`,
+//! you can access the CINS _Country Code_ using `CINS::country_code``, and the (one character
+//! shorter) CINS _Issuer Number_ using `CINS::issuer_num`). You can also get the _Issue Number_
+//! via `CINS::issue_num`, though its the same as for the CUSIP. See the CINS documentation for
+//! more details.
+//!
 //! The country codes are:
 //!
 //! |code|region        |code|region     |code|region       |code|region         |
@@ -237,20 +244,19 @@ fn validate_check_digit_format(cd: u8) -> Result<(), CUSIPError> {
 /// Parse a string to a valid CUSIP or an error, requiring the string to already be only
 /// uppercase alphanumerics with no leading or trailing whitespace in addition to being the
 /// right length and format.
+#[deprecated(note = "Use CUSIP::parse instead.")]
+#[inline]
 pub fn parse(value: &str) -> Result<CUSIP, CUSIPError> {
-    let bytes = value.as_bytes();
-
-    CUSIP::from_bytes(bytes)
+    CUSIP::parse(value)
 }
 
 /// Parse a string to a valid CUSIP or an error message, allowing the string to contain leading
 /// or trailing whitespace and/or lowercase letters as long as it is otherwise the right length
 /// and format.
+#[deprecated(note = "Use CUSIP::parse_loose instead.")]
 #[inline]
 pub fn parse_loose(value: &str) -> Result<CUSIP, CUSIPError> {
-    let uc = value.to_ascii_uppercase();
-    let temp = uc.trim();
-    parse(temp)
+    CUSIP::parse_loose(value)
 }
 
 /// Build a CUSIP from a _Payload_ (an already-concatenated _Issuer Number_ and _Issue Number_). The
@@ -342,6 +348,59 @@ pub fn validate(value: &str) -> bool {
     !incorrect_check_digit
 }
 
+/// Returns true if this CUSIP number is actually a CUSIP International Numbering System
+/// (CINS) number, false otherwise (i.e., that it has a letter as the first character of its
+/// _issuer number_). See also `is_cins_base()` and `is_cins_extended()`.
+fn is_cins(byte: u8) -> bool {
+    match byte {
+        (b'0'..=b'9') => false,
+        (b'A'..=b'Z') => true,
+        x => panic!("It should not be possible to have a non-ASCII-alphanumeric value here: {x:?}"),
+    }
+}
+
+/// Returns true if this CUSIP identifier is actually a CUSIP International Numbering System
+/// (CINS) identifier (with the further restriction that it *does not* use 'I', 'O' or 'Z' as
+/// its country code), false otherwise. See also `is_cins()` and `is_cins_extended()`.
+fn is_cins_base(byte: u8) -> bool {
+    match byte {
+        (b'0'..=b'9') => false,
+        (b'A'..=b'H') => true,
+        b'I' => false,
+        (b'J'..=b'N') => true,
+        b'O' => false,
+        (b'P'..=b'Y') => true,
+        b'Z' => false,
+        x => panic!("It should not be possible to have a non-ASCII-alphanumeric value here: {x:?}"),
+    }
+}
+
+/// Returns true if this CUSIP identifier is actually a CUSIP International Numbering System
+/// (CINS) identifier (with the further restriction that it *does* use 'I', 'O' or 'Z' as its
+/// country code), false otherwise.
+fn is_cins_extended(byte: u8) -> bool {
+    match byte {
+        (b'0'..=b'9') => false,
+        (b'A'..=b'H') => false,
+        b'I' => true,
+        (b'J'..=b'N') => false,
+        b'O' => true,
+        (b'P'..=b'Y') => false,
+        b'Z' => true,
+        x => panic!("It should not be possible to have a non-ASCII-alphanumeric value here: {x:?}"),
+    }
+}
+
+/// Returns Some(c) containing the first character of the CUSIP if it is actually a CUSIP
+/// International Numbering System (CINS) identifier, None otherwise.
+fn cins_country_code(byte: u8) -> Option<char> {
+    match byte {
+        (b'0'..=b'9') => None,
+        x @ (b'A'..=b'Z') => Some(x as char),
+        x => panic!("It should not be possible to have a non-ASCII-alphanumeric value here: {x:?}"),
+    }
+}
+
 #[doc = include_str!("../README.md")]
 #[cfg(doctest)]
 pub struct ReadmeDoctests;
@@ -377,7 +436,7 @@ impl FromStr for CUSIP {
     type Err = CUSIPError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        parse_loose(s)
+        Self::parse_loose(s)
     }
 }
 
@@ -440,70 +499,81 @@ impl CUSIP {
         Ok(CUSIP(bb))
     }
 
+    /// Parse a string to a valid CUSIP or an error, requiring the string to already be only
+    /// uppercase alphanumerics with no leading or trailing whitespace in addition to being the
+    /// right length and format.
+    pub fn parse(value: &str) -> Result<CUSIP, CUSIPError> {
+        let bytes = value.as_bytes();
+
+        Self::from_bytes(bytes)
+    }
+
+    /// Parse a string to a valid CUSIP or an error message, allowing the string to contain leading
+    /// or trailing whitespace and/or lowercase letters as long as it is otherwise the right length
+    /// and format.
+    #[inline]
+    pub fn parse_loose(value: &str) -> Result<CUSIP, CUSIPError> {
+        let uc = value.to_ascii_uppercase();
+        let temp = uc.trim();
+        Self::parse(temp)
+    }
+
     /// Internal convenience function for treating the ASCII characters as a byte-array slice.
     fn as_bytes(&self) -> &[u8] {
         &self.0[..]
+    }
+
+    /// Returns a reference to the `CINS` representation of this `CUSIP`,
+    /// if it is a valid CINS identifier.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use cusip::{CUSIP, CINS};
+    ///
+    /// let cusip = CUSIP::parse("S08000AA9").unwrap();
+    /// if let Some(cins) = cusip.as_cins() {
+    ///     assert_eq!(cins.country_code(), 'S');
+    ///     assert_eq!(cins.issuer_num(), "08000");
+    /// } else {
+    ///     println!("Not a CINS");
+    /// }
+    ///
+    /// let non_cins_cusip = CUSIP::parse("037833100").unwrap();
+    /// assert!(non_cins_cusip.as_cins().is_none());
+    /// ```
+    pub fn as_cins(&self) -> Option<CINS> {
+        CINS::new(self)
     }
 
     /// Returns true if this CUSIP number is actually a CUSIP International Numbering System
     /// (CINS) number, false otherwise (i.e., that it has a letter as the first character of its
     /// _issuer number_). See also `is_cins_base()` and `is_cins_extended()`.
     pub fn is_cins(&self) -> bool {
-        match self.as_bytes()[0] {
-            (b'0'..=b'9') => false,
-            (b'A'..=b'Z') => true,
-            x => panic!(
-                "It should not be possible to have a non-ASCII-alphanumeric value here: {x:?}"
-            ),
-        }
+        is_cins(self.as_bytes()[0])
     }
 
     /// Returns true if this CUSIP identifier is actually a CUSIP International Numbering System
     /// (CINS) identifier (with the further restriction that it *does not* use 'I', 'O' or 'Z' as
     /// its country code), false otherwise. See also `is_cins()` and `is_cins_extended()`.
+    #[deprecated(note = "Use CUSIP::as_cins and CINS::is_cins_base.")]
     pub fn is_cins_base(&self) -> bool {
-        match self.as_bytes()[0] {
-            (b'0'..=b'9') => false,
-            (b'A'..=b'H') => true,
-            b'I' => false,
-            (b'J'..=b'N') => true,
-            b'O' => false,
-            (b'P'..=b'Y') => true,
-            b'Z' => false,
-            x => panic!(
-                "It should not be possible to have a non-ASCII-alphanumeric value here: {x:?}"
-            ),
-        }
+        is_cins_base(self.as_bytes()[0])
     }
 
     /// Returns true if this CUSIP identifier is actually a CUSIP International Numbering System
     /// (CINS) identifier (with the further restriction that it *does* use 'I', 'O' or 'Z' as its
     /// country code), false otherwise.
+    #[deprecated(note = "Use CUSIP::as_cins and CINS::is_cins_extended.")]
     pub fn is_cins_extended(&self) -> bool {
-        match self.as_bytes()[0] {
-            (b'0'..=b'9') => false,
-            (b'A'..=b'H') => false,
-            b'I' => true,
-            (b'J'..=b'N') => false,
-            b'O' => true,
-            (b'P'..=b'Y') => false,
-            b'Z' => true,
-            x => panic!(
-                "It should not be possible to have a non-ASCII-alphanumeric value here: {x:?}"
-            ),
-        }
+        is_cins_extended(self.as_bytes()[0])
     }
 
     /// Returns Some(c) containing the first character of the CUSIP if it is actually a CUSIP
     /// International Numbering System (CINS) identifier, None otherwise.
+    #[deprecated(note = "Use CUSIP::as_cins and CINS::country_code.")]
     pub fn cins_country_code(&self) -> Option<char> {
-        match self.as_bytes()[0] {
-            (b'0'..=b'9') => None,
-            x @ (b'A'..=b'Z') => Some(x as char),
-            x => panic!(
-                "It should not be possible to have a non-ASCII-alphanumeric value here: {x:?}"
-            ),
-        }
+        cins_country_code(self.as_bytes()[0])
     }
 
     /// Return just the _Issuer Number_ portion of the CUSIP.
@@ -559,6 +629,185 @@ impl CUSIP {
     }
 }
 
+/// A CINS (CUSIP International Numbering System) identifier.
+///
+/// CINS is a subset of CUSIP used for international securities.
+/// It is distinguished by having a letter as the first character.
+///
+/// # Creating CINS instances
+///
+/// There are several ways to create a `CINS` instance from a `CUSIP`:
+///
+/// 1. Using `CINS::new`:
+///
+///    ```
+///    use cusip::{CUSIP, CINS};
+///
+///    let cusip = CUSIP::parse("S08000AA9").unwrap();
+///    if let Some(cins) = CINS::new(&cusip) {
+///        println!("CINS: {}", cins);
+///    } else {
+///        println!("Not a valid CINS");
+///    }
+///    ```
+///
+/// 2. Using `TryFrom<&CUSIP>`:
+///
+///    ```
+///    use cusip::{CUSIP, CINS};
+///    use std::convert::TryFrom;
+///
+///    let cusip = CUSIP::parse("S08000AA9").unwrap();
+///    match CINS::try_from(&cusip) {
+///        Ok(cins) => println!("CINS: {}", cins),
+///        Err(err) => println!("Error: {}", err),
+///    }
+///    ```
+///
+/// 3. Using `CUSIP::as_cins`:
+///
+///    ```
+///    use cusip::{CUSIP, CINS};
+///
+///    let cusip = CUSIP::parse("S08000AA9").unwrap();
+///    if let Some(cins) = cusip.as_cins() {
+///        println!("CINS: {}", cins);
+///    } else {
+///        println!("Not a valid CINS");
+///    }
+///    ```
+///
+/// # Accessing the underlying CUSIP
+///
+/// You can call `as_cusip` on a `CINS` instance to access the underlying `CUSIP`:
+///
+/// ```
+/// use cusip::{CUSIP, CINS};
+///
+/// let cusip = CUSIP::parse("S08000AA9").unwrap();
+/// let cins = CINS::new(&cusip).unwrap();
+/// println!("CUSIP: {}", cins.as_cusip());
+/// ```
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[allow(clippy::upper_case_acronyms)]
+pub struct CINS<'a>(&'a CUSIP);
+
+impl<'a> fmt::Display for CINS<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl<'a> fmt::Debug for CINS<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "CINS({})", self.0) // The wrapped CUSIP is written as a string not in debug form
+    }
+}
+
+impl<'a> TryFrom<&'a CUSIP> for CINS<'a> {
+    type Error = &'static str;
+
+    fn try_from(cusip: &'a CUSIP) -> Result<Self, Self::Error> {
+        CINS::new(cusip).ok_or("Not a valid CINS")
+    }
+}
+
+impl<'a> CINS<'a> {
+    /// Constructs a new `CINS` from a reference to a `CUSIP`.
+    ///
+    /// Returns `Some(CINS)` if the given `CUSIP` is a valid CINS identifier,
+    /// i.e., its first character is a letter (A-Z). Otherwise, returns `None`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use cusip::{CUSIP, CINS};
+    ///
+    /// let cusip = CUSIP::parse("S08000AA9").unwrap();
+    /// let cins = CINS::new(&cusip).unwrap();
+    ///
+    /// let non_cins_cusip = CUSIP::parse("037833100").unwrap();
+    /// assert!(CINS::new(&non_cins_cusip).is_none());
+    /// ```
+    pub fn new(cusip: &'a CUSIP) -> Option<Self> {
+        if is_cins(cusip.as_bytes()[0]) {
+            Some(CINS(cusip))
+        } else {
+            None
+        }
+    }
+
+    /// Returns a reference to the underlying `CUSIP`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use cusip::{CUSIP, CINS};
+    ///
+    /// let cusip = CUSIP::parse("S08000AA9").unwrap();
+    /// let cins = CINS::new(&cusip).unwrap();
+    /// assert_eq!(cins.as_cusip().to_string(), "S08000AA9");
+    /// ```
+    pub fn as_cusip(&self) -> &CUSIP {
+        self.0
+    }
+
+    /// Returns the CINS country code.
+    ///
+    /// The country code is the first character of the CINS identifier,
+    /// which is always a letter (A-Z).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use cusip::{CUSIP, CINS};
+    ///
+    /// let cusip = CUSIP::parse("S08000AA9").unwrap();
+    /// let cins = CINS::new(&cusip).unwrap();
+    /// assert_eq!(cins.country_code(), 'S');
+    /// ```
+    pub fn country_code(&self) -> char {
+        self.0.as_bytes()[0] as char
+    }
+
+    /// Returns true if this CUSIP identifier is actually a CUSIP International Numbering System
+    /// (CINS) identifier (with the further restriction that it *does not* use 'I', 'O' or 'Z' as
+    /// its country code), false otherwise. See also `is_cins()` and `is_cins_extended()`.
+    pub fn is_base(&self) -> bool {
+        is_cins_base(self.0.as_bytes()[0])
+    }
+
+    /// Returns true if this CUSIP identifier is actually a CUSIP International Numbering System
+    /// (CINS) identifier (with the further restriction that it *does* use 'I', 'O' or 'Z' as its
+    /// country code), false otherwise.
+    pub fn is_extended(&self) -> bool {
+        is_cins_extended(self.0.as_bytes()[0])
+    }
+
+    /// Returns the CINS issuer number.
+    ///
+    /// The issuer number is the 5 characters following the country code
+    /// in the CINS identifier.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use cusip::{CUSIP, CINS};
+    ///
+    /// let cusip = CUSIP::parse("S08000AA9").unwrap();
+    /// let cins = CINS::new(&cusip).unwrap();
+    /// assert_eq!(cins.issuer_num(), "08000");
+    /// ```
+    pub fn issuer_num(&self) -> &str {
+        unsafe { from_utf8_unchecked(&self.0.as_bytes()[1..6]) }
+    }
+
+    /// Return just the _Issue Number_ portion of the CINS.
+    pub fn issue_num(&self) -> &str {
+        unsafe { from_utf8_unchecked(&self.0.as_bytes()[6..8]) } // This is safe because we know it is ASCII
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -566,7 +815,7 @@ mod tests {
 
     #[test]
     fn parse_cusip_for_bcc_strict() {
-        match parse("09739D100") {
+        match CUSIP::parse("09739D100") {
             Ok(cusip) => {
                 assert_eq!(cusip.to_string(), "09739D100");
                 assert_eq!(cusip.issuer_num(), "09739D");
@@ -580,7 +829,7 @@ mod tests {
 
     #[test]
     fn parse_cusip_for_bcc_loose() {
-        match parse_loose("\t09739d100    ") {
+        match CUSIP::parse_loose("\t09739d100    ") {
             Ok(cusip) => {
                 assert_eq!(cusip.to_string(), "09739D100");
                 assert_eq!(cusip.issuer_num(), "09739D");
@@ -606,7 +855,7 @@ mod tests {
 
     #[test]
     fn parse_cins() {
-        match parse("S08000AA9") {
+        match CUSIP::parse("S08000AA9") {
             Ok(cusip) => {
                 assert_eq!(cusip.to_string(), "S08000AA9");
                 assert_eq!(cusip.issuer_num(), "S08000");
@@ -622,7 +871,7 @@ mod tests {
     /// Modulus 10 Double-Add-Double Technique".
     #[test]
     fn parse_example_from_standard() {
-        match parse("837649128") {
+        match CUSIP::parse("837649128") {
             Ok(cusip) => {
                 assert_eq!(cusip.to_string(), "837649128");
                 assert_eq!(cusip.issuer_num(), "837649");
@@ -643,13 +892,13 @@ mod tests {
 
     #[test]
     fn reject_empty_string() {
-        let res = parse("");
+        let res = CUSIP::parse("");
         assert!(res.is_err());
     }
 
     #[test]
     fn reject_lowercase_issuer_id_if_strict() {
-        match parse("99999zAA5") {
+        match CUSIP::parse("99999zAA5") {
             Err(CUSIPError::InvalidIssuerNum { was: _ }) => {} // Ok
             Err(err) => {
                 panic!(
@@ -668,7 +917,7 @@ mod tests {
 
     #[test]
     fn reject_lowercase_issue_id_if_strict() {
-        match parse("99999Zaa5") {
+        match CUSIP::parse("99999Zaa5") {
             Err(CUSIPError::InvalidIssueNum { was: _ }) => {} // Ok
             Err(err) => {
                 panic!(
@@ -687,52 +936,52 @@ mod tests {
 
     #[test]
     fn parse_cusip_with_0_check_digit() {
-        parse("09739D100").unwrap(); // BCC aka Boise Cascade
+        CUSIP::parse("09739D100").unwrap(); // BCC aka Boise Cascade
     }
 
     #[test]
     fn parse_cusip_with_1_check_digit() {
-        parse("00724F101").unwrap(); // ADBE aka Adobe
+        CUSIP::parse("00724F101").unwrap(); // ADBE aka Adobe
     }
 
     #[test]
     fn parse_cusip_with_2_check_digit() {
-        parse("02376R102").unwrap(); // AAL aka American Airlines
+        CUSIP::parse("02376R102").unwrap(); // AAL aka American Airlines
     }
 
     #[test]
     fn parse_cusip_with_3_check_digit() {
-        parse("053015103").unwrap(); // ADP aka Automatic Data Processing
+        CUSIP::parse("053015103").unwrap(); // ADP aka Automatic Data Processing
     }
 
     #[test]
     fn parse_cusip_with_4_check_digit() {
-        parse("457030104").unwrap(); // IMKTA aka Ingles Markets
+        CUSIP::parse("457030104").unwrap(); // IMKTA aka Ingles Markets
     }
 
     #[test]
     fn parse_cusip_with_5_check_digit() {
-        parse("007800105").unwrap(); // AJRD aka Aerojet Rocketdyne Holdings
+        CUSIP::parse("007800105").unwrap(); // AJRD aka Aerojet Rocketdyne Holdings
     }
 
     #[test]
     fn parse_cusip_with_6_check_digit() {
-        parse("98421M106").unwrap(); // XRX aka Xerox
+        CUSIP::parse("98421M106").unwrap(); // XRX aka Xerox
     }
 
     #[test]
     fn parse_cusip_with_7_check_digit() {
-        parse("007903107").unwrap(); // AMD aka Advanced Micro Devices
+        CUSIP::parse("007903107").unwrap(); // AMD aka Advanced Micro Devices
     }
 
     #[test]
     fn parse_cusip_with_8_check_digit() {
-        parse("921659108").unwrap(); // VNDA aka Vanda Pharmaceuticals
+        CUSIP::parse("921659108").unwrap(); // VNDA aka Vanda Pharmaceuticals
     }
 
     #[test]
     fn parse_cusip_with_9_check_digit() {
-        parse("020772109").unwrap(); // APT aka AlphaProTec
+        CUSIP::parse("020772109").unwrap(); // APT aka AlphaProTec
     }
 
     /// A bunch of test cases obtained from pubic SEC data via a PDF at
@@ -812,7 +1061,7 @@ mod tests {
             "26922A305",
         ];
         for case in cases.iter() {
-            parse(case).unwrap();
+            CUSIP::parse(case).unwrap();
             assert!(
                 validate(case),
                 "Successfully parsed {:?} but got false from validate()!",
@@ -825,7 +1074,7 @@ mod tests {
         #[test]
         #[allow(unused_must_use)]
         fn doesnt_crash(s in "\\PC*") {
-            parse(&s);
+            CUSIP::parse(&s);
         }
     }
 }

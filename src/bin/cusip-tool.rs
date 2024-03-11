@@ -56,6 +56,7 @@
 //! _Check Digit_ will be fixed. In this mode, every good and every fixable input CUSIP is printed
 //! to standard output.
 
+use cusip::CUSIP;
 use std::env;
 use std::io;
 use std::io::prelude::*;
@@ -80,7 +81,7 @@ fn main() {
     let stdin = io::stdin();
     for line in stdin.lock().lines() {
         let line = line.unwrap();
-        match cusip::parse(&line) {
+        match CUSIP::parse(&line) {
             Ok(cusip) => {
                 good += 1;
                 if fix {
