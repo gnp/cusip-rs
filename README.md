@@ -17,7 +17,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-cusip = "0.2"
+cusip = "0.3"
 ```
 
 
