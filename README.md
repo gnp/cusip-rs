@@ -1,7 +1,8 @@
 cusip
 ====
 An `CUSIP` type for working with validated Committee on Uniform Security Identification Procedures (CUSIP) identifiers
-as defined in [ANSI X9.6-2020](https://webstore.ansi.org/standards/ascx9/ansix92020).
+as defined in [ANSI X9.6-2020](https://webstore.ansi.org/standards/ascx9/ansix92020). There is also a companion type
+`CINS` for working with the subset of CUSIP identifiers that conform to the CINS standard.
 
 This crate is part of the Financial Identifiers series:
 
