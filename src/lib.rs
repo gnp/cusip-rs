@@ -693,13 +693,13 @@ impl CUSIP {
 #[allow(clippy::upper_case_acronyms)]
 pub struct CINS<'a>(&'a CUSIP);
 
-impl<'a> fmt::Display for CINS<'a> {
+impl fmt::Display for CINS<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
     }
 }
 
-impl<'a> fmt::Debug for CINS<'a> {
+impl fmt::Debug for CINS<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "CINS({})", self.0) // The wrapped CUSIP is written as a string not in debug form
     }
