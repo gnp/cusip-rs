@@ -16,7 +16,7 @@
 //! 1. A six-character uppercase alphanumeric _Issuer Number_.
 //! 2. A two-character uppercase alphanumeric _Issue Number_.
 //! 3. A single decimal digit representing the _Check Digit_ computed using what The Standard calls
-//! the "modulus 10 'double-add-double' technique".
+//!    the "modulus 10 'double-add-double' technique".
 //!
 //! Note: The Standard does not specify uppercase for the alphabetic characters but uniformly
 //! presents examples only using uppercase. Therefore this implementation treats uppercase as
