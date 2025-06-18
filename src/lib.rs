@@ -419,6 +419,12 @@ pub struct ReadmeDoctests;
 #[allow(clippy::upper_case_acronyms)]
 pub struct CUSIP([u8; 9]);
 
+impl AsRef<str> for CUSIP {
+    fn as_ref(&self) -> &str {
+        unsafe { from_utf8_unchecked(&self.0[..]) } // This is safe because we know it is ASCII
+    }
+}
+
 impl fmt::Display for CUSIP {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
         let temp = unsafe { from_utf8_unchecked(self.as_bytes()) }; // This is safe because we know it is ASCII
@@ -430,6 +436,43 @@ impl fmt::Debug for CUSIP {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let temp = unsafe { from_utf8_unchecked(self.as_bytes()) }; // This is safe because we know it is ASCII
         write!(f, "CUSIP({temp})")
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for CUSIP {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct Visitor;
+
+        impl serde::de::Visitor<'_> for Visitor {
+            type Value = CUSIP;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a CUSIP")
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                CUSIP::parse(v).map_err(E::custom)
+            }
+        }
+
+        deserializer.deserialize_str(Visitor)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for CUSIP {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_ref())
     }
 }
 
