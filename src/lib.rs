@@ -65,6 +65,14 @@
 //! let is_valid_cusip = cusip::validate(some_string);
 //! ```
 //!
+//! ## Optional features
+//!
+//! This crate supports the following optional features:
+//!
+//! * `serde` - Enables serialization and deserialization support via [serde](https://crates.io/crates/serde).
+//! * `schemars` - Enables JSON Schema generation via [schemars](https://crates.io/crates/schemars).
+//!   Generates schemas that match the serde deserialization behavior.
+//!
 //! ## CUSIP
 //!
 //! Since its adoption in 1968, CUSIP has been the standard security identifier for:
@@ -192,6 +200,9 @@ use checksum::checksum_table;
 
 pub mod error;
 pub use error::CUSIPError;
+
+#[cfg(feature = "schemars")]
+pub mod schemars;
 
 /// Compute the _Check Digit_ for an array of u8. No attempt is made to ensure the input string
 /// is in the CUSIP payload format or length. If an illegal character (not an ASCII digit and not
