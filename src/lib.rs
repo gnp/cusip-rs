@@ -682,6 +682,43 @@ impl CUSIP {
     pub fn check_digit(&self) -> char {
         self.as_bytes()[8] as char
     }
+
+    /// Validates a string as a valid CUSIP without constructing an instance.
+    ///
+    /// This method performs the same validation as [`parse`](CUSIP::parse) but returns
+    /// a boolean result instead of constructing a CUSIP instance. It validates the format,
+    /// length, and check digit of the input string.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use cusip::CUSIP;
+    ///
+    /// assert!(CUSIP::validate("037833100"));  // Apple Inc
+    /// assert!(CUSIP::validate("09739D100")); // Boise Cascade
+    /// assert!(!CUSIP::validate("invalid"));   // Invalid format
+    /// assert!(!CUSIP::validate("037833101")); // Wrong check digit
+    /// ```
+    pub fn validate(s: &str) -> bool {
+        crate::validate(s)
+    }
+
+    /// Returns the complete CUSIP identifier as a string.
+    ///
+    /// This method returns the full 9-character CUSIP identifier including
+    /// the issuer number, issue number, and check digit.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use cusip::CUSIP;
+    ///
+    /// let cusip = CUSIP::parse("037833100").unwrap();
+    /// assert_eq!(cusip.value(), "037833100");
+    /// ```
+    pub fn value(&self) -> &str {
+        self.as_ref()
+    }
 }
 
 /// A CINS (CUSIP International Numbering System) identifier.
@@ -1123,6 +1160,114 @@ mod tests {
                 case
             );
         }
+    }
+
+    #[test]
+    fn static_validate_method() {
+        // Test valid CUSIPs
+        assert!(CUSIP::validate("037833100")); // Apple Inc
+        assert!(CUSIP::validate("09739D100")); // Boise Cascade
+        assert!(CUSIP::validate("S08000AA9")); // CINS example
+        assert!(CUSIP::validate("837649128")); // Example from standard
+        assert!(CUSIP::validate("254709108")); // Discover Financial
+
+        // Test invalid CUSIPs
+        assert!(!CUSIP::validate("")); // Empty string
+        assert!(!CUSIP::validate("037833101")); // Wrong check digit
+        assert!(!CUSIP::validate("037833")); // Too short
+        assert!(!CUSIP::validate("0378331000")); // Too long
+        assert!(!CUSIP::validate("037833!00")); // Invalid character
+        assert!(!CUSIP::validate("037833a00")); // Lowercase letter
+        assert!(!CUSIP::validate("invalid!!")); // Invalid format
+
+        // Test consistency with module-level validate function
+        let test_cases = [
+            "037833100",
+            "09739D100",
+            "S08000AA9",
+            "837649128",
+            "254709108",
+            "",
+            "037833101",
+            "037833",
+            "0378331000",
+            "037833!00",
+            "037833a00",
+            "invalid!!",
+        ];
+
+        for case in test_cases.iter() {
+            assert_eq!(
+                CUSIP::validate(case),
+                crate::validate(case),
+                "CUSIP::validate() and module validate() should return same result for {:?}",
+                case
+            );
+        }
+    }
+
+    #[test]
+    fn value_accessor_method() {
+        // Test value() returns complete CUSIP string
+        let cusip1 = CUSIP::parse("037833100").unwrap();
+        assert_eq!(cusip1.value(), "037833100");
+
+        let cusip2 = CUSIP::parse("09739D100").unwrap();
+        assert_eq!(cusip2.value(), "09739D100");
+
+        let cusip3 = CUSIP::parse("S08000AA9").unwrap();
+        assert_eq!(cusip3.value(), "S08000AA9");
+
+        let cusip4 = CUSIP::parse("837649128").unwrap();
+        assert_eq!(cusip4.value(), "837649128");
+
+        // Test consistency with other string representation methods
+        let test_cusips = [
+            "037833100",
+            "09739D100",
+            "S08000AA9",
+            "837649128",
+            "254709108",
+        ];
+
+        for cusip_str in test_cusips.iter() {
+            let cusip = CUSIP::parse(cusip_str).unwrap();
+
+            // value() should match the original string
+            assert_eq!(cusip.value(), *cusip_str);
+
+            // value() should match to_string()
+            assert_eq!(cusip.value(), cusip.to_string());
+
+            // value() should match as_ref()
+            assert_eq!(cusip.value(), cusip.as_ref());
+
+            // value() should match Display formatting
+            assert_eq!(cusip.value(), format!("{}", cusip));
+        }
+    }
+
+    #[test]
+    fn new_methods_non_breaking() {
+        // Verify that existing functionality still works and new methods are additions only
+        let cusip = CUSIP::parse("037833100").unwrap();
+
+        // All existing methods should still work
+        assert_eq!(cusip.issuer_num(), "037833");
+        assert_eq!(cusip.issue_num(), "10");
+        assert_eq!(cusip.check_digit(), '0');
+        assert!(!cusip.is_cins());
+        assert!(!cusip.is_private_use());
+        assert_eq!(cusip.payload(), "03783310");
+
+        // New methods should work alongside existing ones
+        assert_eq!(cusip.value(), "037833100");
+        assert!(CUSIP::validate("037833100"));
+
+        // Verify backward compatibility - all existing string representations work
+        assert_eq!(cusip.to_string(), "037833100");
+        assert_eq!(cusip.as_ref(), "037833100");
+        assert_eq!(format!("{}", cusip), "037833100");
     }
 
     proptest! {
